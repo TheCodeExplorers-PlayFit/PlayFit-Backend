@@ -13,6 +13,24 @@ async function executeQuery(sql, params = []) {
   }
 }
 
+// New endpoint to fetch all sports
+exports.getSports = async (req, res) => {
+  try {
+    const sports = await executeQuery('SELECT id, name FROM sports');
+    res.status(200).json({
+      success: true,
+      sports
+    });
+  } catch (error) {
+    console.error('Error fetching sports:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch sports',
+      error: error.message
+    });
+  }
+};
+
 exports.registerUser = async (req, res) => {
   try {
     const connection = await pool.getConnection();
@@ -20,6 +38,7 @@ exports.registerUser = async (req, res) => {
     try {
       await connection.beginTransaction();
     
+      console.log('Received registration data:', req.body); // Debug log
       const { 
         firstName = null, 
         lastName = null, 
@@ -69,12 +88,28 @@ exports.registerUser = async (req, res) => {
         }
         case 'coach': {
           const { sport1 = null, sport2 = null, sport3 = null, experience = null, documentPath = null } = req.body;
-        
-          // Ensure required fields
+          console.log('Coach data received:', { sport1, sport2, sport3, experience, documentPath });
           if (!sport1 || !experience) {
             throw new Error('Missing required fields for coach: sport1, experience');
           }
-        
+          // Validate sport1 exists in sports table
+          const [sport1Exists] = await connection.execute('SELECT id FROM sports WHERE id = ?', [sport1]);
+          if (sport1Exists.length === 0) {
+            throw new Error('Invalid sport1 ID');
+          }
+          // Validate sport2 and sport3 if provided
+          if (sport2) {
+            const [sport2Exists] = await connection.execute('SELECT id FROM sports WHERE id = ?', [sport2]);
+            if (sport2Exists.length === 0) {
+              throw new Error('Invalid sport2 ID');
+            }
+          }
+          if (sport3) {
+            const [sport3Exists] = await connection.execute('SELECT id FROM sports WHERE id = ?', [sport3]);
+            if (sport3Exists.length === 0) {
+              throw new Error('Invalid sport3 ID');
+            }
+          }
           await connection.execute(
             `INSERT INTO coach_details (userId, sport1, sport2, sport3, experience, documentPath)
              VALUES (?, ?, ?, ?, ?, ?)`,
@@ -98,7 +133,6 @@ exports.registerUser = async (req, res) => {
       
       await connection.commit();
       
-      // Generate JWT token
       const token = jwt.sign(
         { id: userId, role },
         process.env.JWT_SECRET,
@@ -135,7 +169,6 @@ exports.registerUser = async (req, res) => {
   }
 };
 
-// Login controller remains unchanged
 exports.loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -178,7 +211,7 @@ exports.loginUser = async (req, res) => {
       token,
       user: {
         id: user.id,
-        firstName: user.first_Name, // Adjust to match DB column
+        firstName: user.first_Name,
         lastName: user.last_Name,
         email: user.email,
         role: user.role
