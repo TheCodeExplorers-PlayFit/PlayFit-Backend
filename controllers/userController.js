@@ -19,8 +19,7 @@ exports.registerUser = async (req, res) => {
     
     try {
       await connection.beginTransaction();
-      
-      // Extract common user details with defaults to null for optional fields
+    
       const { 
         firstName = null, 
         lastName = null, 
@@ -33,18 +32,15 @@ exports.registerUser = async (req, res) => {
         nic = null
       } = req.body;
       
-      // Validate required fields for users table
       if (!firstName || !lastName || !email || !password || !role) {
         throw new Error('Missing required fields: firstName, lastName, email, password, or role');
       }
 
-      // Hash password
       const salt = await bcrypt.genSalt(10);
       const hashedPassword = await bcrypt.hash(password, salt);
       
-      // Insert into users table
       const [result] = await connection.execute(
-        `INSERT INTO users (firstName, lastName, email, password, role, mobileNumber, age, gender, nic) 
+        `INSERT INTO users (first_Name, last_Name, email, password, role, mobile_Number, age, gender, nic) 
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [firstName, lastName, email, hashedPassword, role, mobileNumber, age, gender, nic]
       );
@@ -72,17 +68,22 @@ exports.registerUser = async (req, res) => {
           break;
         }
         case 'coach': {
-          const { specialization = null, experience = null } = req.body;
+          const { sport1 = null, sport2 = null, sport3 = null, experience = null, documentPath = null } = req.body;
+        
+          // Ensure required fields
+          if (!sport1 || !experience) {
+            throw new Error('Missing required fields for coach: sport1, experience');
+          }
+        
           await connection.execute(
-            `INSERT INTO coach_details (userId, specialization, experience) 
-             VALUES (?, ?, ?)`,
-            [userId, specialization, experience]
+            `INSERT INTO coach_details (userId, sport1, sport2, sport3, experience, documentPath)
+             VALUES (?, ?, ?, ?, ?, ?)`,
+            [userId, sport1, sport2, sport3, experience, documentPath]
           );
           break;
         }
         case 'stadiumOwner': {
           const { facilityName = null, facilityAddress = null } = req.body;
-          // Validate required fields for stadiumOwner
           if (!facilityName || !facilityAddress) {
             throw new Error('Missing required fields for stadiumOwner: facilityName or facilityAddress');
           }
@@ -134,11 +135,11 @@ exports.registerUser = async (req, res) => {
   }
 };
 
+// Login controller remains unchanged
 exports.loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
     
-    // Validate required fields
     if (!email || !password) {
       return res.status(400).json({
         success: false,
@@ -146,7 +147,6 @@ exports.loginUser = async (req, res) => {
       });
     }
     
-    // Find user by email
     const users = await executeQuery('SELECT * FROM users WHERE email = ?', [email]);
     
     if (users.length === 0) {
@@ -158,7 +158,6 @@ exports.loginUser = async (req, res) => {
     
     const user = users[0];
     
-    // Compare password
     const isMatch = await bcrypt.compare(password, user.password);
     
     if (!isMatch) {
@@ -168,7 +167,6 @@ exports.loginUser = async (req, res) => {
       });
     }
     
-    // Generate JWT token
     const token = jwt.sign(
       { id: user.id, role: user.role },
       process.env.JWT_SECRET,
@@ -180,8 +178,8 @@ exports.loginUser = async (req, res) => {
       token,
       user: {
         id: user.id,
-        firstName: user.firstName,
-        lastName: user.lastName,
+        firstName: user.first_Name, // Adjust to match DB column
+        lastName: user.last_Name,
         email: user.email,
         role: user.role
       }
