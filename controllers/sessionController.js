@@ -60,7 +60,55 @@ exports.getStadiumsByLocationAndSport = async (req, res) => {
   }
 };
 
+// Fetch weekly timetable for a stadium
+exports.getWeeklyTimetable = async (req, res) => {
+  try {
+    const { stadiumId, startDate } = req.query;
+    if (!stadiumId) {
+      return res.status(400).json({
+        success: false,
+        message: 'stadiumId is required'
+      });
+    }
+
+    // If no startDate provided, use current week's Monday
+    const start = startDate ? new Date(startDate) : new Date();
+    start.setHours(0, 0, 0, 0);
+    if (!startDate) {
+      const day = start.getDay();
+      start.setDate(start.getDate() - (day === 0 ? 6 : day - 1)); // Set to Monday
+    }
+
+    // Calculate end of week (Sunday)
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    end.setHours(23, 59, 59, 999);
+
+    const sessions = await executeQuery(
+      `SELECT s.id, s.stadium_id, s.sport_id, sp.name AS sport_name, s.coach_id, s.session_date, s.start_time, s.end_time, s.status
+       FROM sessions s
+       JOIN sports sp ON s.sport_id = sp.id
+       WHERE s.stadium_id = ? AND s.session_date BETWEEN ? AND ?
+       ORDER BY s.session_date, s.start_time`,
+      [stadiumId, start.toISOString().split('T')[0], end.toISOString().split('T')[0]]
+    );
+
+    res.status(200).json({
+      success: true,
+      sessions
+    });
+  } catch (error) {
+    console.error('Error fetching weekly timetable:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch weekly timetable',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   getLocations: exports.getLocations,
-  getStadiumsByLocationAndSport: exports.getStadiumsByLocationAndSport
+  getStadiumsByLocationAndSport: exports.getStadiumsByLocationAndSport,
+  getWeeklyTimetable: exports.getWeeklyTimetable
 };
