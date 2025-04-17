@@ -60,6 +60,36 @@ exports.getStadiumsByLocationAndSport = async (req, res) => {
   }
 };
 
+// Fetch stadiums by location only
+exports.getStadiumsByLocation = async (req, res) => {
+  try {
+    const { locationId } = req.query;
+    if (!locationId) {
+      return res.status(400).json({
+        success: false,
+        message: 'locationId is required'
+      });
+    }
+    const stadiums = await executeQuery(
+      `SELECT id, name, address
+       FROM stadiums
+       WHERE location_id = ?`,
+      [locationId]
+    );
+    res.status(200).json({
+      success: true,
+      stadiums
+    });
+  } catch (error) {
+    console.error('Error fetching stadiums by location:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch stadiums',
+      error: error.message
+    });
+  }
+};
+
 // Fetch weekly timetable for a stadium
 exports.getWeeklyTimetable = async (req, res) => {
   try {
@@ -110,5 +140,6 @@ exports.getWeeklyTimetable = async (req, res) => {
 module.exports = {
   getLocations: exports.getLocations,
   getStadiumsByLocationAndSport: exports.getStadiumsByLocationAndSport,
+  getStadiumsByLocation: exports.getStadiumsByLocation,
   getWeeklyTimetable: exports.getWeeklyTimetable
 };
