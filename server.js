@@ -1,8 +1,8 @@
-// server.js
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 const userRoutes = require('./routes/userRoutes');
+const sessionRoutes = require('./routes/sessionRoutes');
 
 const app = express();
 
@@ -15,6 +15,7 @@ app.use(express.json());
 
 // Routes
 app.use('/api/users', userRoutes);
+app.use('/api/sessions', sessionRoutes);
 
 // Base route
 app.get('/', (req, res) => {
