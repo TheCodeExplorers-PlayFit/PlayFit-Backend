@@ -17,4 +17,10 @@ router.get('/timetable', sessionController.getWeeklyTimetable);
 // Validate session availability and cost
 router.get('/validate-session', sessionController.validateSession);
 
+// Initiate PayHere payment
+router.post('/initiate-payment', sessionController.initiatePayment);
+
+// Handle PayHere webhook
+router.post('/payment-webhook', sessionController.handlePaymentWebhook);
+
 module.exports = router;
