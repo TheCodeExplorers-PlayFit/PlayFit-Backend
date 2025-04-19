@@ -115,7 +115,7 @@ exports.getWeeklyTimetable = async (req, res) => {
     end.setHours(23, 59, 59, 999);
 
     const sessions = await executeQuery(
-      `SELECT s.id, s.stadium_id, s.sport_id, sp.name AS sport_name, s.coach_id, s.session_date, s.start_time, s.end_time, s.status
+      `SELECT s.id, s.stadium_id, s.sport_id, sp.name AS sport_name, s.coach_id, s.session_date, s.start_time, s.end_time, s.status, s.cost
        FROM sessions s
        JOIN sports sp ON s.sport_id = sp.id
        WHERE s.stadium_id = ? AND s.session_date BETWEEN ? AND ?
@@ -137,9 +137,46 @@ exports.getWeeklyTimetable = async (req, res) => {
   }
 };
 
+// Validate session availability and fetch cost
+exports.validateSession = async (req, res) => {
+  try {
+    const { sessionId } = req.query;
+    if (!sessionId) {
+      return res.status(400).json({
+        success: false,
+        message: 'sessionId is required'
+      });
+    }
+    const sessions = await executeQuery(
+      `SELECT id, cost, status
+       FROM sessions
+       WHERE id = ? AND status = 'available'`,
+      [sessionId]
+    );
+    if (sessions.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Session not found or unavailable'
+      });
+    }
+    res.status(200).json({
+      success: true,
+      session: sessions[0]
+    });
+  } catch (error) {
+    console.error('Error validating session:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to validate session',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   getLocations: exports.getLocations,
   getStadiumsByLocationAndSport: exports.getStadiumsByLocationAndSport,
   getStadiumsByLocation: exports.getStadiumsByLocation,
-  getWeeklyTimetable: exports.getWeeklyTimetable
+  getWeeklyTimetable: exports.getWeeklyTimetable,
+  validateSession: exports.validateSession
 };

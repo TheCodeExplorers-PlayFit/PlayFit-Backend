@@ -14,4 +14,7 @@ router.get('/stadiums-by-location', sessionController.getStadiumsByLocation);
 // Get weekly timetable for a stadium
 router.get('/timetable', sessionController.getWeeklyTimetable);
 
+// Validate session availability and cost
+router.get('/validate-session', sessionController.validateSession);
+
 module.exports = router;
