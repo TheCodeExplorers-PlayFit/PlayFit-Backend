@@ -38,13 +38,13 @@ exports.registerUser = async (req, res) => {
 
     try {
       await connection.beginTransaction();
-    
+
       console.log('Received registration data:', req.body); // Debug log
-      const { 
-        firstName = null, 
-        lastName = null, 
-        email = null, 
-        password = null, 
+      const {
+        firstName = null,
+        lastName = null,
+        email = null,
+        password = null,
         role = null,
         mobileNumber = null,
         age = null,
@@ -202,7 +202,7 @@ exports.loginUser = async (req, res) => {
         message: 'Invalid email or password'
       });
     }
-    
+
     const token = jwt.sign(
       { id: user.id, role: user.role },
       process.env.JWT_SECRET,
