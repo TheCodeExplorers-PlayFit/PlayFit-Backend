@@ -3,6 +3,7 @@ const cors = require('cors');
 require('dotenv').config();
 const userRoutes = require('./routes/userRoutes');
 const sessionRoutes = require('./routes/sessionRoutes');
+const approvalsRoutes = require('./routes/approvalsRoutes');
 
 const app = express();
 
@@ -16,6 +17,7 @@ app.use(express.json());
 // Routes
 app.use('/api/users', userRoutes);
 app.use('/api/sessions', sessionRoutes);
+app.use('/approvals', approvalsRoutes);
 
 // Base route
 app.get('/', (req, res) => {
