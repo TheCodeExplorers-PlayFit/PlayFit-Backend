@@ -27,7 +27,15 @@ exports.getUnverifiedUsers = async (req, res) => {
       throw new Error('Medical Officer query failed: ' + err.message);
     });
 
-    const unverifiedUsers = [...coaches, ...medicalOfficers];
+    const [stadiums] = await pool.query(`
+      SELECT id AS userId, 'stadium' AS role, name AS facilityName
+      FROM stadiums
+      WHERE isVerified = 0
+    `).catch(err => {
+      throw new Error('Stadium query failed: ' + err.message);
+    });
+
+    const unverifiedUsers = [...coaches, ...medicalOfficers, ...stadiums];
     res.json(unverifiedUsers);
   } catch (err) {
     console.error('Error fetching unverified users:', err);
@@ -48,6 +56,10 @@ exports.approveUser = async (req, res) => {
       const [user] = await pool.query('SELECT id FROM users WHERE id = ? AND role = ?', [userId, 'medicalOfficer']);
       if (!user[0]) return res.status(404).json({ error: 'User not found' });
       await pool.query('UPDATE medical_officer_details SET isVerified = 1 WHERE userId = ?', [userId]);
+    } else if (role === 'Stadium') {
+      const [stadium] = await pool.query('SELECT id FROM stadiums WHERE id = ?', [userId]);
+      if (!stadium[0]) return res.status(404).json({ error: 'Stadium not found' });
+      await pool.query('UPDATE stadiums SET isVerified = 1 WHERE id = ?', [userId]);
     } else {
       return res.status(400).json({ error: 'Invalid role for approval' });
     }
@@ -74,6 +86,12 @@ exports.rejectUser = async (req, res) => {
       if (!user[0]) return res.status(404).json({ error: 'User not found' });
       await pool.query('DELETE FROM medical_officer_details WHERE userId = ?', [userId]);
       await pool.query('DELETE FROM users WHERE id = ?', [userId]);
+    } else if (role === 'Stadium') {
+      const [stadium] = await pool.query('SELECT id FROM stadiums WHERE id = ?', [userId]);
+      if (!stadium[0]) return res.status(404).json({ error: 'Stadium not found' });
+      await pool.query('DELETE FROM stadium_sports WHERE stadium_id = ?', [userId]);
+      await pool.query('DELETE FROM sessions WHERE stadium_id = ?', [userId]);
+      await pool.query('DELETE FROM stadiums WHERE id = ?', [userId]);
     } else {
       return res.status(400).json({ error: 'Invalid role for rejection' });
     }
