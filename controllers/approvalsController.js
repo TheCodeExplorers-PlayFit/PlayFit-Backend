@@ -43,6 +43,42 @@ exports.getUnverifiedUsers = async (req, res) => {
   }
 };
 
+exports.getVerifiedUsers = async (req, res) => {
+  try {
+    const [coaches] = await pool.query(`
+      SELECT u.id AS userId, u.first_name, u.last_name, u.role, u.created_at, cd.documentPath
+      FROM users u
+      INNER JOIN coach_details cd ON u.id = cd.userId
+      WHERE u.role = 'coach' AND cd.verified = 1
+    `).catch(err => {
+      throw new Error('Coach query failed: ' + err.message);
+    });
+
+    const [medicalOfficers] = await pool.query(`
+      SELECT u.id AS userId, u.first_name, u.last_name, u.role, u.created_at, medical_officer_details.documentPath
+      FROM users u
+      INNER JOIN medical_officer_details ON u.id = medical_officer_details.userId
+      WHERE u.role = 'medicalOfficer' AND medical_officer_details.isVerified = 1
+    `).catch(err => {
+      throw new Error('Medical Officer query failed: ' + err.message);
+    });
+
+    const [stadiums] = await pool.query(`
+      SELECT id AS userId, 'stadium' AS role, name AS facilityName
+      FROM stadiums
+      WHERE isVerified = 1
+    `).catch(err => {
+      throw new Error('Stadium query failed: ' + err.message);
+    });
+
+    const verifiedUsers = [...coaches, ...medicalOfficers, ...stadiums];
+    res.json(verifiedUsers);
+  } catch (err) {
+    console.error('Error fetching verified users:', err);
+    res.status(500).json({ error: 'Internal server error', details: err.message });
+  }
+};
+
 exports.approveUser = async (req, res) => {
   const { userId } = req.params;
   const { role } = req.body;
