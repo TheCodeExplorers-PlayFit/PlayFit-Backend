@@ -38,7 +38,7 @@ exports.registerUser = async (req, res) => {
     try {
       await connection.beginTransaction();
     
-      console.log('Received registration data:', req.body); // Debug log
+      console.log('Received registration data:', req.body);
       const { 
         firstName = null, 
         lastName = null, 
@@ -67,6 +67,7 @@ exports.registerUser = async (req, res) => {
       const userId = result.insertId;
       
       // Handle role-specific details
+      let coachSports = {};
       switch (role) {
         case 'player': {
           const { hasHealthIssues = false, healthIssuesDescription = null } = req.body;
@@ -115,6 +116,7 @@ exports.registerUser = async (req, res) => {
              VALUES (?, ?, ?, ?, ?, ?)`,
             [userId, sport1, sport2, sport3, experience, documentPath]
           );
+          coachSports = { sport1, sport2, sport3 };
           break;
         }
         case 'stadiumOwner': {
@@ -148,7 +150,8 @@ exports.registerUser = async (req, res) => {
           firstName,
           lastName,
           email,
-          role
+          role,
+          ...coachSports
         }
       });
       
@@ -200,6 +203,18 @@ exports.loginUser = async (req, res) => {
       });
     }
     
+    let coachSports = {};
+    if (user.role === 'coach') {
+      const coachDetails = await executeQuery('SELECT sport1, sport2, sport3 FROM coach_details WHERE userId = ?', [user.id]);
+      if (coachDetails.length > 0) {
+        coachSports = {
+          sport1: coachDetails[0].sport1,
+          sport2: coachDetails[0].sport2,
+          sport3: coachDetails[0].sport3
+        };
+      }
+    }
+    
     const token = jwt.sign(
       { id: user.id, role: user.role },
       process.env.JWT_SECRET,
@@ -214,7 +229,8 @@ exports.loginUser = async (req, res) => {
         firstName: user.first_Name,
         lastName: user.last_Name,
         email: user.email,
-        role: user.role
+        role: user.role,
+        ...coachSports
       }
     });
     
