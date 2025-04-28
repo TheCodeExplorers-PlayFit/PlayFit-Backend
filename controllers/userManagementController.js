@@ -1,8 +1,9 @@
 const db = require('../config/db');
 
-// Get all users except admins
+// Get all users except admins with counts
 exports.getAllUsers = async (req, res) => {
   try {
+    // Fetch all users except admins
     const [users] = await db.query(`
       SELECT 
         u.id, 
@@ -19,9 +20,22 @@ exports.getAllUsers = async (req, res) => {
       WHERE u.role != 'admin'
     `);
 
+    // Calculate role-wise counts
+    const roleCounts = users.reduce((acc, user) => {
+      acc[user.role] = (acc[user.role] || 0) + 1;
+      return acc;
+    }, {});
+
     res.status(200).json({
       success: true,
       data: users,
+      totalCount: users.length,
+      roleCounts: {
+        player: roleCounts.player || 0,
+        coach: roleCounts.coach || 0,
+        stadiumOwner: roleCounts.stadiumOwner || 0,
+        medicalOfficer: roleCounts.medicalOfficer || 0,
+      },
     });
   } catch (error) {
     console.error('Error fetching users:', error);
