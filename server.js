@@ -2,7 +2,9 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 const userRoutes = require('./routes/userRoutes');
+const userManagementRoutes = require('./routes/userManagementRoutes');
 const sessionRoutes = require('./routes/sessionRoutes');
+const approvalsRoutes = require('./routes/approvalsRoutes');
 
 const app = express();
 
@@ -14,8 +16,10 @@ app.use(cors({
 app.use(express.json());
 
 // Routes
-app.use('/api/users', userRoutes);
+app.use('/api/users', userRoutes); // Mount userRoutes first
+app.use('/api/users', userManagementRoutes);
 app.use('/api/sessions', sessionRoutes);
+app.use('/approvals', approvalsRoutes);
 
 // Base route
 app.get('/', (req, res) => {
