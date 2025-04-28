@@ -3,10 +3,11 @@ const router = express.Router();
 const { getAllUsers, deleteUser } = require('../controllers/userManagementController');
 const { protect, restrictTo } = require('../middleware/authenticationMiddleware');
 
-router.use(protect); // Protect all routes
-router.use(restrictTo('admin')); // Restrict to admin role
+// Protected routes (admin only)
+router.route('/')
+  .get(protect, restrictTo('admin'), getAllUsers);
 
-router.get('/', getAllUsers);
-router.delete('/:id', deleteUser);
+router.route('/:id')
+  .delete(protect, restrictTo('admin'), deleteUser);
 
 module.exports = router;
