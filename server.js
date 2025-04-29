@@ -28,6 +28,7 @@ app.use('/api/sessions', sessionRoutes);
 app.use('/api/healthOfficers', healthOfficerRoutes);
 app.use('/api/appointments', healthAppointmentRoutes);
 
+
 // Base routeapp.use('/api/healthOfficers', healthOfficerRoutes)
 app.get('/', (req, res) => {
   res.send('Sports App API is running');

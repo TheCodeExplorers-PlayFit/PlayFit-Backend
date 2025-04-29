@@ -5,4 +5,7 @@ const healthAppointmentController = require('../controllers/healthAppointment.co
 // GET /api/appointments/:healthOfficerId
 router.get('/:healthOfficerId', healthAppointmentController.getAppointmentsByOfficerId);
 
+// POST /api/appointments/update-status
+router.post('/update-status', healthAppointmentController.updateAppointmentStatus);
+
 module.exports = router;
