@@ -3,6 +3,7 @@ const cors = require('cors');
 require('dotenv').config();
 const userRoutes = require('./routes/userRoutes');
 const sessionRoutes = require('./routes/sessionRoutes');
+const stadiumRoutes = require('./routes/stadiumRoutes');
 
 const app = express();
 
@@ -16,6 +17,7 @@ app.use(express.json());
 // Routes
 app.use('/api/users', userRoutes);
 app.use('/api/sessions', sessionRoutes);
+app.use('/api/stadiums', stadiumRoutes);
 
 // Base route
 app.get('/', (req, res) => {
