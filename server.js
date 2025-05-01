@@ -1,9 +1,13 @@
+// server.js
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 const userRoutes = require('./routes/userRoutes');
+const userManagementRoutes = require('./routes/userManagementRoutes');
 const sessionRoutes = require('./routes/sessionRoutes');
-const stadiumRoutes = require('./routes/stadiumRoutes');
+const stadiumRoutes = require('./routes/stadiumRoutes'); // From Nethmi1 branch
+const approvalsRoutes = require('./routes/approvalsRoutes'); // From dev branch
+const announcementRoutes = require('./routes/announcementRoutes'); // From dev branch
 
 const app = express();
 
@@ -16,8 +20,11 @@ app.use(express.json());
 
 // Routes
 app.use('/api/users', userRoutes);
+app.use('/api/users', userManagementRoutes);
 app.use('/api/sessions', sessionRoutes);
-app.use('/api/stadiums', stadiumRoutes);
+app.use('/api/stadiums', stadiumRoutes); // From Nethmi1 branch
+app.use('/approvals', approvalsRoutes); // From dev branch
+app.use('/api/announcements', announcementRoutes); // From dev branch
 
 // Base route
 app.get('/', (req, res) => {

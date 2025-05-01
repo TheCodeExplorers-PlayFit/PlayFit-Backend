@@ -23,4 +23,10 @@ router.post('/initiate-payment', sessionController.initiatePayment);
 // Handle PayHere webhook
 router.post('/payment-webhook', sessionController.handlePaymentWebhook);
 
+// Set sport cost for a stadium-sport combination (Stadium Owner)
+router.post('/set-sport-cost', sessionController.setSportCost);
+
+// Create a session (Coach)
+router.post('/create-session', sessionController.createSession);
+
 module.exports = router;
