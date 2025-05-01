@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { getAllUsers, deleteUser } = require('../controllers/userManagementController');
-const { protect, restrictTo } = require('../middleware/authenticationMiddleware');
+const { protect, restrictTo } = require('../middleware/auth'); // Updated import
 
 // Protected routes (admin only)
 router.route('/')

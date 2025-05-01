@@ -114,7 +114,7 @@ exports.getWeeklyTimetable = async (req, res) => {
     end.setHours(23, 59, 59, 999);
 
     const sessions = await executeQuery(
-      `SELECT s.id, s.stadium_id, s.sport_id, sp.name AS sport_name, s.coach_id, s.session_date, s.start_time, s.end_time, s.status, s.cost
+      `SELECT s.id, s.stadium_id, s.sport_id, sp.name AS sport_name, s.coach_id, s.session_date, s.start_time, s.end_time, s.status, s.total_cost
        FROM sessions s
        JOIN sports sp ON s.sport_id = sp.id
        WHERE s.stadium_id = ? AND s.session_date BETWEEN ? AND ?
@@ -147,7 +147,7 @@ exports.validateSession = async (req, res) => {
       });
     }
     const sessions = await executeQuery(
-      `SELECT id, cost, status
+      `SELECT id, total_cost, status
        FROM sessions
        WHERE id = ? AND status = 'available'`,
       [sessionId]
@@ -185,7 +185,7 @@ exports.initiatePayment = async (req, res) => {
 
     // Validate session
     const sessions = await executeQuery(
-      `SELECT id, cost, status
+      `SELECT id, total_cost, status
        FROM sessions
        WHERE id = ? AND status = 'available'`,
       [sessionId]
@@ -214,12 +214,12 @@ exports.initiatePayment = async (req, res) => {
     }
 
     const session = sessions[0];
-    console.log('Session cost:', session.cost);
-    const amount = parseFloat(session.cost);
-    if (!session.cost || isNaN(amount) || amount <= 0) {
+    console.log('Session total_cost:', session.total_cost);
+    const amount = parseFloat(session.total_cost);
+    if (!session.total_cost || isNaN(amount) || amount <= 0) {
       return res.status(400).json({
         success: false,
-        message: `Invalid session cost: ${session.cost}`
+        message: `Invalid session total_cost: ${session.total_cost}`
       });
     }
 
@@ -237,7 +237,7 @@ exports.initiatePayment = async (req, res) => {
     );
 
     // Generate PayHere hash
-    const formattedAmount = Number(amount).toFixed(2); // Ensure 1600.00 format
+    const formattedAmount = Number(amount).toFixed(2);
     const secretHash = crypto.createHash('md5').update(merchantSecret).digest('hex').toUpperCase();
     const hashInput = merchantId + orderId + formattedAmount + currency + secretHash;
     console.log('Hash inputs:', { merchantId, orderId, formattedAmount, currency, secretHash, hashInput });
@@ -255,7 +255,7 @@ exports.initiatePayment = async (req, res) => {
       first_name: player.first_name,
       last_name: player.last_name || '',
       email: player.email,
-      phone: '0771234567', // Placeholder, update if available
+      phone: '0771234567',
       address: 'No. 1, Galle Road',
       city: 'Colombo',
       country: 'Sri Lanka',
@@ -340,6 +340,94 @@ exports.handlePaymentWebhook = async (req, res) => {
   }
 };
 
+// Set sport cost for a stadium-sport combination (Stadium Owner)
+exports.setSportCost = async (req, res) => {
+  try {
+    const { stadiumId, sportId, sportCost } = req.body;
+    if (!stadiumId || !sportId || sportCost == null || sportCost < 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'stadiumId, sportId, and sportCost (non-negative) are required'
+      });
+    }
+
+    const existing = await executeQuery(
+      `SELECT id FROM stadium_sports WHERE stadium_id = ? AND sport_id = ?`,
+      [stadiumId, sportId]
+    );
+    if (existing.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Stadium-sport combination not found'
+      });
+    }
+
+    await executeQuery(
+      `UPDATE stadium_sports SET sport_cost = ? WHERE stadium_id = ? AND sport_id = ?`,
+      [parseFloat(sportCost), stadiumId, sportId]
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Sport cost updated successfully'
+    });
+  } catch (error) {
+    console.error('Error setting sport cost:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to set sport cost',
+      error: error.message
+    });
+  }
+};
+
+// Create a session (Coach)
+exports.createSession = async (req, res) => {
+  try {
+    const { stadiumId, coachId, sessionDate, startTime, endTime, maxPlayers, sportId, coachCost } = req.body;
+    if (!stadiumId || !coachId || !sessionDate || !startTime || !endTime || !maxPlayers || !sportId || coachCost == null || coachCost < 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'stadiumId, coachId, sessionDate, startTime, endTime, maxPlayers, sportId, and coachCost (non-negative) are required'
+      });
+    }
+
+    const sportData = await executeQuery(
+      `SELECT sport_cost FROM stadium_sports WHERE stadium_id = ? AND sport_id = ?`,
+      [stadiumId, sportId]
+    );
+    if (sportData.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Stadium-sport combination not found'
+      });
+    }
+
+    const stadiumSportCost = parseFloat(sportData[0].sport_cost) || 0.00;
+    const coachCostValue = parseFloat(coachCost);
+    const totalCost = stadiumSportCost + coachCostValue;
+
+    const result = await executeQuery(
+      `INSERT INTO sessions (stadium_id, coach_id, session_date, start_time, end_time, max_players, sport_id, stadium_sport_cost, coach_cost, total_cost, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'available')`,
+      [stadiumId, coachId, sessionDate, startTime, endTime, maxPlayers, sportId, stadiumSportCost, coachCostValue, totalCost]
+    );
+
+    res.status(201).json({
+      success: true,
+      sessionId: result.insertId,
+      message: 'Session created successfully'
+    });
+  } catch (error) {
+    console.error('Error creating session:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create session',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   getLocations: exports.getLocations,
   getStadiumsByLocationAndSport: exports.getStadiumsByLocationAndSport,
@@ -347,5 +435,7 @@ module.exports = {
   getWeeklyTimetable: exports.getWeeklyTimetable,
   validateSession: exports.validateSession,
   initiatePayment: exports.initiatePayment,
-  handlePaymentWebhook: exports.handlePaymentWebhook
+  handlePaymentWebhook: exports.handlePaymentWebhook,
+  setSportCost: exports.setSportCost,
+  createSession: exports.createSession
 };
