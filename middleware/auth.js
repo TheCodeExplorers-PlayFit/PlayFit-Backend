@@ -23,7 +23,7 @@ exports.protect = async (req, res, next) => {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       
       // Get user from database
-      const [users] = await pool.execute('SELECT id, firstName, lastName, email, role FROM users WHERE id = ?', [decoded.id]);
+      const [users] = await pool.execute('SELECT id, first_Name as firstName, last_Name as lastName, email, role FROM users WHERE id = ?', [decoded.id]);
       
       if (users.length === 0) {
         return res.status(404).json({
@@ -49,4 +49,17 @@ exports.protect = async (req, res, next) => {
       error: error.message
     });
   }
+};
+
+// Add the restrictTo function from authenticationMiddleware.js
+exports.restrictTo = (...roles) => {
+  return (req, res, next) => {
+    if (!roles.includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have permission to perform this action',
+      });
+    }
+    next();
+  };
 };
