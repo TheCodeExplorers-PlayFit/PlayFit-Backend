@@ -1,8 +1,8 @@
-// server.js
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 const userRoutes = require('./routes/userRoutes');
+const stadiumRoutes = require('./routes/stadiumRoutes');
 
 const app = express();
 
@@ -11,10 +11,12 @@ app.use(cors({
   origin: 'http://localhost:4200',
   credentials: true
 }));
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Routes
 app.use('/api/users', userRoutes);
+app.use('/api/stadiums', stadiumRoutes);
 
 // Base route
 app.get('/', (req, res) => {
