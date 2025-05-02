@@ -3,6 +3,10 @@ const cors = require('cors');
 require('dotenv').config();
 const userRoutes = require('./routes/userRoutes');
 const stadiumRoutes = require('./routes/stadiumRoutes');
+const userManagementRoutes = require('./routes/userManagementRoutes');
+const sessionRoutes = require('./routes/sessionRoutes');
+const approvalsRoutes = require('./routes/approvalsRoutes');
+const announcementRoutes = require('./routes/announcementRoutes');
 
 const app = express();
 
@@ -17,6 +21,10 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 // Routes
 app.use('/api/users', userRoutes);
 app.use('/api/stadiums', stadiumRoutes);
+app.use('/api/users', userManagementRoutes);
+app.use('/api/sessions', sessionRoutes);
+app.use('/approvals', approvalsRoutes);
+app.use('/api/announcements', announcementRoutes);
 
 // Base route
 app.get('/', (req, res) => {
