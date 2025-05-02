@@ -18,6 +18,10 @@ const HealthAppointment = sequelize.define('HealthAppointment', {
     type: DataTypes.STRING(30),
     allowNull: true
   },
+  player_email: {
+    type: DataTypes.STRING(30),
+    allowNull: true
+  },
   health_officer_id: {
     type: DataTypes.INTEGER,
     allowNull: false,
