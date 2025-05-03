@@ -8,6 +8,7 @@ const sessionRoutes = require('./routes/sessionRoutes');
 const stadiumRoutes = require('./routes/stadiumRoutes'); // From Nethmi1 branch
 const approvalsRoutes = require('./routes/approvalsRoutes'); // From dev branch
 const announcementRoutes = require('./routes/announcementRoutes'); // From dev branch
+const transactionRoutes = require('./routes/transactionRoutes')
 
 const app = express();
 
@@ -25,6 +26,7 @@ app.use('/api/sessions', sessionRoutes);
 app.use('/api/stadiums', stadiumRoutes); // From Nethmi1 branch
 app.use('/approvals', approvalsRoutes); // From dev branch
 app.use('/api/announcements', announcementRoutes); // From dev branch
+app.use('/api/transactions', transactionRoutes);
 
 // Base route
 app.get('/', (req, res) => {
