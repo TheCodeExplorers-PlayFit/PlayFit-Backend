@@ -6,7 +6,6 @@ async function addStadium(req, res) {
     await connection.beginTransaction();
     const { name, address, google_maps_link, facilities, images, schedule } = req.body;
 
-    // Validate input
     if (!name || !address || !google_maps_link || !schedule || !Array.isArray(schedule) || schedule.length === 0) {
       return res.status(400).json({ message: 'Missing required fields: name, address, google_maps_link, or valid schedule' });
     }
@@ -19,11 +18,7 @@ async function addStadium(req, res) {
       return res.status(401).json({ message: 'User not authenticated' });
     }
 
-    // Insert into stadiums
-    const sqlStadium = `
-      INSERT INTO stadiums (name, address, google_maps_link, facilities, images, owner_id)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `;
+    const sqlStadium = 'INSERT INTO stadiums (name, address, google_maps_link, facilities, images, owner_id) VALUES (?, ?, ?, ?, ?, ?)';
     let stadiumResult;
     try {
       [stadiumResult] = await connection.execute(sqlStadium, [
@@ -40,7 +35,6 @@ async function addStadium(req, res) {
     }
     const stadiumId = stadiumResult.insertId;
 
-    // Insert into stadium_sports
     const uniqueSports = [...new Set(schedule.map(session => session.sport))];
     for (const sport of uniqueSports) {
       const [sportRows] = await connection.execute('SELECT id FROM sports WHERE name = ?', [sport]);
@@ -61,12 +55,10 @@ async function addStadium(req, res) {
       }
     }
 
-    // Insert into sessions
     const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     for (const session of schedule) {
       const { sport, day, fromTime, toTime, maxPlayers } = session;
 
-      // Validate session fields
       if (!sport || !day || !fromTime || !toTime || !Number.isInteger(maxPlayers) || maxPlayers <= 0) {
         throw new Error(`Invalid session data: ${JSON.stringify(session)}`);
       }
@@ -86,10 +78,7 @@ async function addStadium(req, res) {
         throw new Error(`Invalid day ${day} for sport ${sport}`);
       }
 
-      const sqlSession = `
-        INSERT INTO sessions (stadium_id, sport_id, start_time, end_time, max_players, status, day_of_week, recurring)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `;
+      const sqlSession = 'INSERT INTO sessions (stadium_id, sport_id, start_time, end_time, max_players, status, day_of_week, recurring) VALUES (?, ?, ?, ?, ?, ?, ?, ?)';
       try {
         await connection.execute(sqlSession, [
           stadiumId,
@@ -98,8 +87,8 @@ async function addStadium(req, res) {
           toTime,
           maxPlayers,
           'available',
-          dayIndex + 1, // 1=Monday, ..., 7=Sunday
-          1 // Recurring weekly
+          dayIndex + 1,
+          1
         ]);
       } catch (error) {
         console.error(`Error inserting session for sport ${sport}:`, error);
@@ -127,7 +116,7 @@ async function getStadiumsByCoachSports(req, res) {
     }
 
     const [coachSports] = await pool.execute(
-      `SELECT sport1, sport2, sport3 FROM coach_details WHERE userId = ?`,
+      'SELECT sport1, sport2, sport3 FROM coach_details WHERE userId = ?',
       [userId]
     );
 
@@ -155,7 +144,7 @@ async function getStadiumsByCoachSports(req, res) {
        LEFT JOIN locations l ON s.location_id = l.location_id
        WHERE ss.sport_id IN (${placeholders})
        GROUP BY s.id`,
-      [...sportsArray]
+      sportsArray
     );
 
     const processedStadiums = stadiums.map(stadium => {
@@ -185,54 +174,102 @@ async function getStadiums(req, res) {
   console.log('getStadiums called with user:', req.user);
   const connection = await pool.getConnection();
   try {
-    const [rows] = await connection.execute(`
+    if (!req.user?.id) {
+      console.error('No user ID found in request');
+      return res.status(401).json({ message: 'User not authenticated' });
+    }
+
+    try {
+      await connection.query('SELECT 1');
+      console.log('Database connection successful');
+    } catch (error) {
+      console.error('Database connection error:', error);
+      throw new Error('Failed to connect to database');
+    }
+
+    const [tables] = await connection.query(
+      'SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME IN ("stadiums", "stadium_sports", "sports", "sessions")'
+    );
+    const requiredTables = ['stadiums', 'stadium_sports', 'sports', 'sessions'];
+    const missingTables = requiredTables.filter(t => !tables.some(row => row.TABLE_NAME === t));
+    if (missingTables.length > 0) {
+      console.error('Missing tables:', missingTables);
+      throw new Error(`Missing required tables: ${missingTables.join(', ')}`);
+    }
+
+    const sqlQuery = `
       SELECT s.id, s.name, s.address, s.google_maps_link, s.facilities, s.images,
              ss.sport_id, sp.name AS sport_name,
-             se.session_date, se.start_time, se.end_time, se.max_players
+             se.start_time, se.end_time, se.max_players, se.day_of_week
       FROM stadiums s
       LEFT JOIN stadium_sports ss ON s.id = ss.stadium_id
       LEFT JOIN sports sp ON ss.sport_id = sp.id
-      LEFT JOIN sessions se ON s.id = se.stadium_id
+      LEFT JOIN sessions se ON s.id = se.stadium_id 
+        AND (se.sport_id = ss.sport_id OR se.sport_id IS NULL)
+        AND se.status = 'available'
       WHERE s.owner_id = ?
-    `, [req.user.id]);
+    `;
+    const [rows] = await connection.execute(sqlQuery, [req.user.id]);
     console.log('Database rows:', rows);
+
     const stadiums = {};
-    rows.forEach(row => {
-      if (!stadiums[row.id]) {
-        stadiums[row.id] = {
-          id: row.id,
-          name: row.name,
-          address: row.address,
-          google_maps_link: row.google_maps_link,
-          facilities: row.facilities,
-          images: [],
-          schedules: []
-        };
-        try {
-          if (row.images) {
-            const parsedImages = JSON.parse(row.images);
-            if (Array.isArray(parsedImages)) {
-              stadiums[row.id].images = parsedImages;
+    for (const row of rows) {
+      try {
+        if (!stadiums[row.id]) {
+          stadiums[row.id] = {
+            id: row.id,
+            name: row.name,
+            address: row.address,
+            google_maps_link: row.google_maps_link,
+            facilities: row.facilities,
+            images: [],
+            schedules: []
+          };
+          try {
+            if (row.images && row.images.trim() !== '') {
+              const parsedImages = JSON.parse(row.images);
+              if (Array.isArray(parsedImages)) {
+                stadiums[row.id].images = parsedImages;
+              } else {
+                console.warn(`Images not an array for stadium ${row.id}:`, parsedImages);
+                stadiums[row.id].images = [];
+              }
             }
+          } catch (e) {
+            console.warn(`Invalid JSON in images for stadium ${row.id}: ${row.images}`, e);
+            stadiums[row.id].images = [];
           }
-        } catch (e) {
-          console.warn(`Invalid JSON in images for stadium ${row.id}: ${row.images}`);
-          stadiums[row.id].images = [];
         }
+        if (row.sport_name && row.start_time && row.end_time && row.max_players && row.day_of_week) {
+          if (row.day_of_week < 1 || row.day_of_week > 7) {
+            console.warn(`Skipping invalid day_of_week for stadium ${row.id}: ${row.day_of_week}`);
+            continue;
+          }
+          const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+          const day = daysOfWeek[row.day_of_week - 1];
+          stadiums[row.id].schedules.push({
+            sport: row.sport_name,
+            day,
+            start_time: row.start_time,
+            end_time: row.end_time,
+            max_players: row.max_players
+          });
+        }
+      } catch (e) {
+        console.error(`Error processing row for stadium ${row.id}:`, e);
       }
-      if (row.sport_name) {
-        stadiums[row.id].schedules.push({
-          sport: row.sport_name,
-          session_date: row.session_date,
-          start_time: row.start_time,
-          end_time: row.end_time,
-          max_players: row.max_players
-        });
-      }
-    });
-    res.status(200).json(Object.values(stadiums));
+    }
+
+    const result = Object.values(stadiums);
+    console.log('Processed stadiums:', result);
+    res.status(200).json(result);
   } catch (error) {
-    console.error('Error fetching stadiums:', error);
+    console.error('Error in getStadiums:', {
+      message: error.message,
+      stack: error.stack,
+      userId: req.user?.id,
+      sqlError: error.sqlMessage || 'N/A'
+    });
     res.status(500).json({ message: 'Error fetching stadiums', error: error.message });
   } finally {
     connection.release();
@@ -244,29 +281,56 @@ async function updateStadium(req, res) {
   try {
     const { id, name, address, google_maps_link, facilities, images, schedules } = req.body;
     console.log('Updating stadium with data:', req.body);
+    if (!id || !name || !address || !google_maps_link || !schedules || !Array.isArray(schedules)) {
+      return res.status(400).json({ message: 'Missing required fields: id, name, address, google_maps_link, or valid schedules' });
+    }
     await connection.beginTransaction();
     const sqlUpdate = `
       UPDATE stadiums
       SET name = ?, address = ?, google_maps_link = ?, facilities = ?, images = ?
       WHERE id = ? AND owner_id = ?
     `;
-    await connection.execute(sqlUpdate, [
+    const [updateResult] = await connection.execute(sqlUpdate, [
       name,
       address,
       google_maps_link,
-      facilities,
+      facilities || null,
       JSON.stringify(images || []),
       id,
       req.user.id
     ]);
+    if (updateResult.affectedRows === 0) {
+      throw new Error('Stadium not found or not owned by user');
+    }
     await connection.execute('DELETE FROM sessions WHERE stadium_id = ?', [id]);
+    await connection.execute('DELETE FROM stadium_sports WHERE stadium_id = ?', [id]);
+    const uniqueSports = [...new Set(schedules.map((s) => s.sport))];
+    for (const sport of uniqueSports) {
+      const [sportRows] = await connection.execute('SELECT id FROM sports WHERE name = ?', [sport]);
+      if (sportRows.length === 0) {
+        console.warn(`Sport ${sport} not found. Skipping.`);
+        continue;
+      }
+      const sportId = sportRows[0].id;
+      await connection.execute('INSERT INTO stadium_sports (stadium_id, sport_id, sport_percentage) VALUES (?, ?, ?)', [
+        id,
+        sportId,
+        0.00
+      ]);
+    }
+    const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     for (const schedule of schedules) {
-      const [sportRows] = await connection.execute('SELECT id FROM sports WHERE name = ?', [schedule.sport]);
+      const [sportRows] = await connection.execute('SELECT id FROM sports WHERE name = ?', [sport]);
       if (sportRows.length > 0) {
         const sportId = sportRows[0].id;
+        const dayIndex = daysOfWeek.indexOf(schedule.day);
+        if (dayIndex === -1) {
+          console.warn(`Invalid day ${schedule.day} for sport ${schedule.sport}. Skipping.`);
+          continue;
+        }
         await connection.execute(
-          'INSERT INTO sessions (stadium_id, sport_id, session_date, start_time, end_time, max_players, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
-          [id, sportId, new Date().toISOString().split('T')[0], schedule.start_time, schedule.end_time, schedule.max_players, 'available']
+          'INSERT INTO sessions (stadium_id, sport_id, start_time, end_time, max_players, status, day_of_week, recurring) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+          [id, sportId, schedule.start_time, schedule.end_time, schedule.max_players, 'available', dayIndex + 1, 1]
         );
       }
     }
@@ -289,7 +353,10 @@ async function deleteStadium(req, res) {
     await connection.beginTransaction();
     await connection.execute('DELETE FROM sessions WHERE stadium_id = ?', [id]);
     await connection.execute('DELETE FROM stadium_sports WHERE stadium_id = ?', [id]);
-    await connection.execute('DELETE FROM stadiums WHERE id = ? AND owner_id = ?', [id, req.user.id]);
+    const [deleteResult] = await connection.execute('DELETE FROM stadiums WHERE id = ? AND owner_id = ?', [id, req.user.id]);
+    if (deleteResult.affectedRows === 0) {
+      throw new Error('Stadium not found or not owned by user');
+    }
     await connection.commit();
     res.status(200).json({ message: 'Stadium deleted successfully' });
   } catch (error) {
