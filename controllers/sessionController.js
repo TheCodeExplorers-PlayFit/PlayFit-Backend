@@ -91,10 +91,10 @@ exports.getStadiumsByLocation = async (req, res) => {
   }
 };
 
-// Fetch weekly timetable for a stadium, excluding booked sessions for the player
+// Fetch weekly timetable for a stadium, showing next week's sessions
 exports.getWeeklyTimetable = async (req, res) => {
   try {
-    const { stadiumId, playerId, startDate } = req.query;
+    const { stadiumId, playerId } = req.query;
     if (!stadiumId) {
       return res.status(400).json({
         success: false,
@@ -102,36 +102,82 @@ exports.getWeeklyTimetable = async (req, res) => {
       });
     }
 
-    const start = startDate ? new Date(startDate) : new Date();
-    start.setHours(0, 0, 0, 0);
-    if (!startDate) {
-      const day = start.getDay();
-      start.setDate(start.getDate() - (day === 0 ? 6 : day - 1));
-    }
+    // Calculate next week's Monday
+    const today = new Date();
+    const currentDay = today.getDay();
+    const daysToNextMonday = currentDay === 0 ? 1 : 8 - currentDay;
+    const nextMonday = new Date(today);
+    nextMonday.setDate(today.getDate() + daysToNextMonday);
+    nextMonday.setHours(0, 0, 0, 0);
 
-    const end = new Date(start);
-    end.setDate(start.getDate() + 6);
-    end.setHours(23, 59, 59, 999);
-
+    // Calculate session dates based on day_of_week
     let query = `
-      SELECT s.id, s.stadium_id, s.sport_id, sp.name AS sport_name, s.coach_id, 
-             s.session_date, s.start_time, s.end_time, s.status, s.total_cost,
-             s.no_of_players, s.max_players
+      SELECT 
+        s.id, 
+        s.stadium_id, 
+        s.sport_id, 
+        sp.name AS sport_name, 
+        s.coach_id, 
+        CONCAT(u.first_name, ' ', u.last_name) AS coach_name,
+        s.day_of_week,
+        CASE s.day_of_week
+          WHEN 1 THEN DATE_FORMAT(DATE_ADD(?, INTERVAL 0 DAY), '%Y/%m/%d')
+          WHEN 2 THEN DATE_FORMAT(DATE_ADD(?, INTERVAL 1 DAY), '%Y/%m/%d')
+          WHEN 3 THEN DATE_FORMAT(DATE_ADD(?, INTERVAL 2 DAY), '%Y/%m/%d')
+          WHEN 4 THEN DATE_FORMAT(DATE_ADD(?, INTERVAL 3 DAY), '%Y/%m/%d')
+          WHEN 5 THEN DATE_FORMAT(DATE_ADD(?, INTERVAL 4 DAY), '%Y/%m/%d')
+          WHEN 6 THEN DATE_FORMAT(DATE_ADD(?, INTERVAL 5 DAY), '%Y/%m/%d')
+          WHEN 7 THEN DATE_FORMAT(DATE_ADD(?, INTERVAL 6 DAY), '%Y/%m/%d')
+        END AS session_date,
+        CASE s.day_of_week
+          WHEN 1 THEN 'Monday'
+          WHEN 2 THEN 'Tuesday'
+          WHEN 3 THEN 'Wednesday'
+          WHEN 4 THEN 'Thursday'
+          WHEN 5 THEN 'Friday'
+          WHEN 6 THEN 'Saturday'
+          WHEN 7 THEN 'Sunday'
+        END AS day_name,
+        s.start_time, 
+        s.end_time, 
+        s.status, 
+        s.total_cost,
+        s.no_of_players, 
+        s.max_players
       FROM sessions s
       JOIN sports sp ON s.sport_id = sp.id
-      WHERE s.stadium_id = ? AND s.session_date BETWEEN ? AND ?
-      AND s.status = 'available' AND s.no_of_players < s.max_players`;
+      LEFT JOIN users u ON s.coach_id = u.id
+      WHERE s.stadium_id = ? 
+      AND s.status = 'available' 
+      AND s.no_of_players < s.max_players
+      AND s.recurring = 1`;
     
-    const params = [stadiumId, start.toISOString().split('T')[0], end.toISOString().split('T')[0]];
+    const params = [
+      nextMonday, nextMonday, nextMonday, nextMonday, 
+      nextMonday, nextMonday, nextMonday, stadiumId
+    ];
 
     if (playerId) {
       query += ` AND s.id NOT IN (
-        SELECT session_id FROM player_bookings WHERE player_id = ?
+        SELECT session_id 
+        FROM player_bookings 
+        WHERE player_id = ? 
+        AND booking_date = (
+          CASE s.day_of_week
+            WHEN 1 THEN DATE_ADD(?, INTERVAL 0 DAY)
+            WHEN 2 THEN DATE_ADD(?, INTERVAL 1 DAY)
+            WHEN 3 THEN DATE_ADD(?, INTERVAL 2 DAY)
+            WHEN 4 THEN DATE_ADD(?, INTERVAL 3 DAY)
+            WHEN 5 THEN DATE_ADD(?, INTERVAL 4 DAY)
+            WHEN 6 THEN DATE_ADD(?, INTERVAL 5 DAY)
+            WHEN 7 THEN DATE_ADD(?, INTERVAL 6 DAY)
+          END
+        )
       )`;
-      params.push(playerId);
+      params.push(playerId, nextMonday, nextMonday, nextMonday, nextMonday, nextMonday, nextMonday, nextMonday);
     }
 
-    query += ` ORDER BY s.session_date, s.start_time`;
+    query += ` ORDER BY s.day_of_week, s.start_time`;
 
     const sessions = await executeQuery(query, params);
 
@@ -202,11 +248,40 @@ exports.getBookingDetails = async (req, res) => {
         message: 'sessionId is required'
       });
     }
+    // Calculate next week's Monday for session_date
+    const today = new Date();
+    const currentDay = today.getDay();
+    const daysToNextMonday = currentDay === 0 ? 1 : 8 - currentDay;
+    const nextMonday = new Date(today);
+    nextMonday.setDate(today.getDate() + daysToNextMonday);
+
     const details = await executeQuery(
       `SELECT 
-         s.session_date, s.start_time, s.end_time, s.total_cost,
+         CASE s.day_of_week
+           WHEN 1 THEN DATE_FORMAT(DATE_ADD(?, INTERVAL 0 DAY), '%Y/%m/%d')
+           WHEN 2 THEN DATE_FORMAT(DATE_ADD(?, INTERVAL 1 DAY), '%Y/%m/%d')
+           WHEN 3 THEN DATE_FORMAT(DATE_ADD(?, INTERVAL 2 DAY), '%Y/%m/%d')
+           WHEN 4 THEN DATE_FORMAT(DATE_ADD(?, INTERVAL 3 DAY), '%Y/%m/%d')
+           WHEN 5 THEN DATE_FORMAT(DATE_ADD(?, INTERVAL 4 DAY), '%Y/%m/%d')
+           WHEN 6 THEN DATE_FORMAT(DATE_ADD(?, INTERVAL 5 DAY), '%Y/%m/%d')
+           WHEN 7 THEN DATE_FORMAT(DATE_ADD(?, INTERVAL 6 DAY), '%Y/%m/%d')
+         END AS session_date,
+         CASE s.day_of_week
+           WHEN 1 THEN 'Monday'
+           WHEN 2 THEN 'Tuesday'
+           WHEN 3 THEN 'Wednesday'
+           WHEN 4 THEN 'Thursday'
+           WHEN 5 THEN 'Friday'
+           WHEN 6 THEN 'Saturday'
+           WHEN 7 THEN 'Sunday'
+         END AS day_name,
+         s.start_time, 
+         s.end_time, 
+         s.total_cost,
          sp.name AS sport_name,
-         st.name AS stadium_name, st.address, st.google_maps_link,
+         st.name AS stadium_name, 
+         st.address, 
+         st.google_maps_link,
          l.location_name,
          CONCAT(u.first_name, ' ', u.last_name) AS coach_name
        FROM sessions s
@@ -215,7 +290,7 @@ exports.getBookingDetails = async (req, res) => {
        JOIN locations l ON st.location_id = l.location_id
        LEFT JOIN users u ON s.coach_id = u.id
        WHERE s.id = ?`,
-      [sessionId]
+      [nextMonday, nextMonday, nextMonday, nextMonday, nextMonday, nextMonday, nextMonday, sessionId]
     );
     if (details.length === 0) {
       return res.status(404).json({
@@ -228,6 +303,7 @@ exports.getBookingDetails = async (req, res) => {
       stadiumName: details[0].stadium_name,
       locationName: details[0].location_name,
       sessionDate: details[0].session_date,
+      dayName: details[0].day_name,
       startTime: details[0].start_time,
       endTime: details[0].end_time,
       address: details[0].address,
@@ -259,20 +335,25 @@ exports.initiatePayment = async (req, res) => {
       });
     }
 
-    // Validate session
-    const sessions = await executeQuery(
-      `SELECT id, total_cost, status, no_of_players, max_players
+    // Calculate booking_date for the session
+    const today = new Date();
+    const currentDay = today.getDay();
+    const daysToNextMonday = currentDay === 0 ? 1 : 8 - currentDay;
+    const nextMonday = new Date(today);
+    nextMonday.setDate(today.getDate() + daysToNextMonday);
+
+    const [session] = await executeQuery(
+      `SELECT id, total_cost, status, no_of_players, max_players, day_of_week
        FROM sessions
        WHERE id = ? AND status = 'available'`,
       [sessionId]
     );
-    if (sessions.length === 0) {
+    if (!session) {
       return res.status(404).json({
         success: false,
         message: 'Session not found or unavailable'
       });
     }
-    const session = sessions[0];
     if (session.no_of_players >= session.max_players) {
       return res.status(400).json({
         success: false,
@@ -280,10 +361,15 @@ exports.initiatePayment = async (req, res) => {
       });
     }
 
-    // Check if player has already booked this session
+    // Calculate booking_date
+    const bookingDate = new Date(nextMonday);
+    bookingDate.setDate(nextMonday.getDate() + (session.day_of_week - 1));
+
+    // Check if player has already booked this session for the booking_date
     const existingBooking = await executeQuery(
-      `SELECT id FROM player_bookings WHERE player_id = ? AND session_id = ?`,
-      [playerId, sessionId]
+      `SELECT id FROM player_bookings 
+       WHERE player_id = ? AND session_id = ? AND booking_date = ?`,
+      [playerId, sessionId, bookingDate.toISOString().split('T')[0]]
     );
     if (existingBooking.length > 0) {
       return res.status(400).json({
@@ -367,7 +453,7 @@ exports.initiatePayment = async (req, res) => {
   }
 };
 
-// Handle PayHere webhook (kept for reference, but not used for completion)
+// Handle PayHere webhook
 exports.handlePaymentWebhook = async (req, res) => {
   console.log('Webhook called with body:', JSON.stringify(req.body, null, 2));
 
@@ -426,9 +512,15 @@ exports.handlePaymentWebhook = async (req, res) => {
         const payment = payments[0];
         console.log('Payment details:', payment);
 
-        // Verify session exists and is not full
+        // Calculate booking_date
+        const today = new Date();
+        const currentDay = today.getDay();
+        const daysToNextMonday = currentDay === 0 ? 1 : 8 - currentDay;
+        const nextMonday = new Date(today);
+        nextMonday.setDate(today.getDate() + daysToNextMonday);
+
         const [session] = await connection.execute(
-          `SELECT no_of_players, max_players
+          `SELECT day_of_week
            FROM sessions
            WHERE id = ?`,
           [payment.session_id]
@@ -436,10 +528,24 @@ exports.handlePaymentWebhook = async (req, res) => {
         if (session.length === 0) {
           throw new Error('Session not found');
         }
-        if (session[0].no_of_players >= session[0].max_players) {
+
+        const bookingDate = new Date(nextMonday);
+        bookingDate.setDate(nextMonday.getDate() + (session.day_of_week - 1));
+
+        // Verify session exists and is not full
+        const [sessionData] = await connection.execute(
+          `SELECT no_of_players, max_players
+           FROM sessions
+           WHERE id = ?`,
+          [payment.session_id]
+        );
+        if (sessionData.length === 0) {
+          throw new Error('Session not found');
+        }
+        if (sessionData.no_of_players >= sessionData.max_players) {
           throw new Error('Session is fully booked');
         }
-        console.log('Session before update:', session[0]);
+        console.log('Session before update:', sessionData);
 
         // Increment no_of_players
         const [sessionUpdateResult] = await connection.execute(
@@ -453,9 +559,9 @@ exports.handlePaymentWebhook = async (req, res) => {
 
         // Insert into player_bookings
         const [bookingInsertResult] = await connection.execute(
-          `INSERT INTO player_bookings (player_id, session_id, payment_id)
-           VALUES (?, ?, ?)`,
-          [payment.player_id, payment.session_id, payment.id]
+          `INSERT INTO player_bookings (player_id, session_id, booking_date, payment_id)
+           VALUES (?, ?, ?, ?)`,
+          [payment.player_id, payment.session_id, bookingDate.toISOString().split('T')[0], payment.id]
         );
         console.log('Player booking insert result:', bookingInsertResult);
       }
@@ -484,7 +590,7 @@ exports.handlePaymentWebhook = async (req, res) => {
   }
 };
 
-// New endpoint to complete payment from frontend
+// Complete payment from frontend
 exports.completePayment = async (req, res) => {
   try {
     const { order_id, transaction_id } = req.body;
@@ -525,9 +631,15 @@ exports.completePayment = async (req, res) => {
       const payment = payments[0];
       console.log('Payment details:', payment);
 
-      // Verify session exists and is not full
+      // Calculate booking_date
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Normalize to start of day
+      const currentDay = today.getDay();
+      const daysToNextMonday = currentDay === 0 ? 1 : 8 - currentDay;
+      const nextMonday = new Date(today.getTime() + daysToNextMonday * 24 * 60 * 60 * 1000);
+
       const [session] = await connection.execute(
-        `SELECT no_of_players, max_players
+        `SELECT day_of_week
          FROM sessions
          WHERE id = ?`,
         [payment.session_id]
@@ -535,10 +647,25 @@ exports.completePayment = async (req, res) => {
       if (session.length === 0) {
         throw new Error('Session not found');
       }
-      if (session[0].no_of_players >= session[0].max_players) {
+
+      // Calculate booking_date based on day_of_week
+      const dayOffset = session[0].day_of_week - 1; // day_of_week is 1=Monday, ..., 7=Sunday
+      const bookingDate = new Date(nextMonday.getTime() + dayOffset * 24 * 60 * 60 * 1000);
+
+      // Verify session exists and is not full
+      const [sessionData] = await connection.execute(
+        `SELECT no_of_players, max_players
+         FROM sessions
+         WHERE id = ?`,
+        [payment.session_id]
+      );
+      if (sessionData.length === 0) {
+        throw new Error('Session not found');
+      }
+      if (sessionData[0].no_of_players >= sessionData[0].max_players) {
         throw new Error('Session is fully booked');
       }
-      console.log('Session before update:', session[0]);
+      console.log('Session before update:', sessionData[0]);
 
       // Increment no_of_players
       const [sessionUpdateResult] = await connection.execute(
@@ -552,9 +679,9 @@ exports.completePayment = async (req, res) => {
 
       // Insert into player_bookings
       const [bookingInsertResult] = await connection.execute(
-        `INSERT INTO player_bookings (player_id, session_id, payment_id)
-         VALUES (?, ?, ?)`,
-        [payment.player_id, payment.session_id, payment.id]
+        `INSERT INTO player_bookings (player_id, session_id, booking_date, payment_id)
+         VALUES (?, ?, ?, ?)`,
+        [payment.player_id, payment.session_id, bookingDate.toISOString().split('T')[0], payment.id]
       );
       console.log('Player booking insert result:', bookingInsertResult);
 
@@ -629,11 +756,11 @@ exports.setSportCost = async (req, res) => {
 // Create a session (Coach)
 exports.createSession = async (req, res) => {
   try {
-    const { stadiumId, coachId, sessionDate, startTime, endTime, maxPlayers, sportId, coachCost } = req.body;
-    if (!stadiumId || !coachId || !sessionDate || !startTime || !endTime || !maxPlayers || !sportId || coachCost == null || coachCost < 0) {
+    const { stadiumId, coachId, dayOfWeek, startTime, endTime, maxPlayers, sportId, coachCost } = req.body;
+    if (!stadiumId || !coachId || !dayOfWeek || !startTime || !endTime || !maxPlayers || !sportId || coachCost == null || coachCost < 0) {
       return res.status(400).json({
         success: false,
-        message: 'stadiumId, coachId, sessionDate, startTime, endTime, maxPlayers, sportId, and coachCost (non-negative) are required'
+        message: 'stadiumId, coachId, dayOfWeek, startTime, endTime, maxPlayers, sportId, and coachCost (non-negative) are required'
       });
     }
 
@@ -654,9 +781,9 @@ exports.createSession = async (req, res) => {
     const totalCost = stadiumSportCost + coachCostValue;
 
     const result = await executeQuery(
-      `INSERT INTO sessions (stadium_id, coach_id, session_date, start_time, end_time, max_players, sport_id, stadium_sport_cost, coach_cost, total_cost, status, no_of_players)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'available', 0)`,
-      [stadiumId, coachId, sessionDate, startTime, endTime, maxPlayers, sportId, stadiumSportCost, coachCostValue, totalCost]
+      `INSERT INTO sessions (stadium_id, coach_id, day_of_week, start_time, end_time, max_players, sport_id, stadium_sport_cost, coach_cost, total_cost, status, no_of_players, recurring)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'available', 0, 1)`,
+      [stadiumId, coachId, dayOfWeek, startTime, endTime, maxPlayers, sportId, stadiumSportCost, coachCostValue, totalCost]
     );
 
     res.status(201).json({
