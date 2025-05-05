@@ -47,7 +47,7 @@ async function addStadium(req, res) {
         await connection.execute('INSERT INTO stadium_sports (stadium_id, sport_id, sport_percentage) VALUES (?, ?, ?)', [
           stadiumId,
           sportId,
-          0.00
+          0.00 // This can be removed if we don't need it, since we're storing sport cost in sessions
         ]);
       } catch (error) {
         console.error(`Error inserting stadium_sports for sport ${sport}:`, error);
@@ -57,13 +57,19 @@ async function addStadium(req, res) {
 
     const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     for (const session of schedule) {
-      const { sport, day, fromTime, toTime, maxPlayers } = session;
+      const { sport, day, fromTime, toTime, maxPlayers, sportPercentage } = session;
 
       if (!sport || !day || !fromTime || !toTime || !Number.isInteger(maxPlayers) || maxPlayers <= 0) {
-        throw new Error(`Invalid session data: ${JSON.stringify(session)}`);
+        console.warn(`Skipping invalid session data: ${JSON.stringify(session)}`);
+        continue;
       }
       if (fromTime >= toTime) {
-        throw new Error(`Invalid time range for sport ${sport}: ${fromTime} to ${toTime}`);
+        console.warn(`Skipping invalid time range for sport ${sport}: ${fromTime} to ${toTime}`);
+        continue;
+      }
+      if (sportPercentage === undefined || sportPercentage < 0 || sportPercentage > 100) {
+        console.warn(`Skipping invalid sportPercentage for sport ${sport}: ${sportPercentage}`);
+        continue;
       }
 
       const [sportRows] = await connection.execute('SELECT id FROM sports WHERE name = ?', [sport]);
@@ -75,10 +81,11 @@ async function addStadium(req, res) {
 
       const dayIndex = daysOfWeek.indexOf(day);
       if (dayIndex === -1) {
-        throw new Error(`Invalid day ${day} for sport ${sport}`);
+        console.warn(`Invalid day ${day} for sport ${sport}. Skipping.`);
+        continue;
       }
 
-      const sqlSession = 'INSERT INTO sessions (stadium_id, sport_id, start_time, end_time, max_players, status, day_of_week, recurring) VALUES (?, ?, ?, ?, ?, ?, ?, ?)';
+      const sqlSession = 'INSERT INTO sessions (stadium_id, sport_id, start_time, end_time, max_players, status, day_of_week, recurring, stadium_sport_cost) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)';
       try {
         await connection.execute(sqlSession, [
           stadiumId,
@@ -88,7 +95,8 @@ async function addStadium(req, res) {
           maxPlayers,
           'available',
           dayIndex + 1,
-          1
+          1,
+          (sportPercentage / 100).toFixed(2) // Convert percentage to decimal for stadium_sport_cost
         ]);
       } catch (error) {
         console.error(`Error inserting session for sport ${sport}:`, error);
@@ -200,7 +208,7 @@ async function getStadiums(req, res) {
     const sqlQuery = `
       SELECT s.id, s.name, s.address, s.google_maps_link, s.facilities, s.images,
              ss.sport_id, sp.name AS sport_name,
-             se.start_time, se.end_time, se.max_players, se.day_of_week
+             se.start_time, se.end_time, se.max_players, se.day_of_week, se.stadium_sport_cost
       FROM stadiums s
       LEFT JOIN stadium_sports ss ON s.id = ss.stadium_id
       LEFT JOIN sports sp ON ss.sport_id = sp.id
@@ -252,7 +260,8 @@ async function getStadiums(req, res) {
             day,
             start_time: row.start_time,
             end_time: row.end_time,
-            max_players: row.max_players
+            max_players: row.max_players,
+            stadium_sportcost: parseFloat(row.stadium_sport_cost) * 100 // Convert decimal back to percentage
           });
         }
       } catch (e) {
@@ -276,15 +285,24 @@ async function getStadiums(req, res) {
   }
 }
 
+
+// ... (other functions remain unchanged)
+
 async function updateStadium(req, res) {
   const connection = await pool.getConnection();
   try {
     const { id, name, address, google_maps_link, facilities, images, schedules } = req.body;
-    console.log('Updating stadium with data:', req.body);
+    console.log('Updating stadium with data:', JSON.stringify(req.body, null, 2));
+    
+    // Validate required fields
     if (!id || !name || !address || !google_maps_link || !schedules || !Array.isArray(schedules)) {
+      console.error('Validation failed: Missing required fields');
       return res.status(400).json({ message: 'Missing required fields: id, name, address, google_maps_link, or valid schedules' });
     }
+    
     await connection.beginTransaction();
+    
+    // Update stadium details
     const sqlUpdate = `
       UPDATE stadiums
       SET name = ?, address = ?, google_maps_link = ?, facilities = ?, images = ?
@@ -299,12 +317,18 @@ async function updateStadium(req, res) {
       id,
       req.user.id
     ]);
+    
     if (updateResult.affectedRows === 0) {
+      console.error('Stadium not found or not owned by user:', { id, owner_id: req.user.id });
       throw new Error('Stadium not found or not owned by user');
     }
+    
+    // Clear existing sessions and stadium_sports
     await connection.execute('DELETE FROM sessions WHERE stadium_id = ?', [id]);
     await connection.execute('DELETE FROM stadium_sports WHERE stadium_id = ?', [id]);
-    const uniqueSports = [...new Set(schedules.map((s) => s.sport))];
+    
+    // Insert updated sports
+    const uniqueSports = [...new Set(schedules.map((s) => s.sport).filter(sport => sport))];
     for (const sport of uniqueSports) {
       const [sportRows] = await connection.execute('SELECT id FROM sports WHERE name = ?', [sport]);
       if (sportRows.length === 0) {
@@ -318,32 +342,58 @@ async function updateStadium(req, res) {
         0.00
       ]);
     }
+    
+    // Insert updated sessions
     const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     for (const schedule of schedules) {
-      const [sportRows] = await connection.execute('SELECT id FROM sports WHERE name = ?', [sport]);
-      if (sportRows.length > 0) {
-        const sportId = sportRows[0].id;
-        const dayIndex = daysOfWeek.indexOf(schedule.day);
-        if (dayIndex === -1) {
-          console.warn(`Invalid day ${schedule.day} for sport ${schedule.sport}. Skipping.`);
-          continue;
-        }
-        await connection.execute(
-          'INSERT INTO sessions (stadium_id, sport_id, start_time, end_time, max_players, status, day_of_week, recurring) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-          [id, sportId, schedule.start_time, schedule.end_time, schedule.max_players, 'available', dayIndex + 1, 1]
-        );
+      if (!schedule.sport || !schedule.day || !schedule.start_time || !schedule.end_time || !Number.isInteger(schedule.max_players) || schedule.max_players <= 0) {
+        console.warn(`Skipping invalid session data: ${JSON.stringify(schedule)}`);
+        continue;
       }
+      if (schedule.start_time >= schedule.end_time) {
+        console.warn(`Skipping invalid time range for sport ${schedule.sport}: ${schedule.start_time} to ${schedule.end_time}`);
+        continue;
+      }
+      const sportPercentage = schedule.stadium_sportcost !== undefined ? schedule.stadium_sportcost : 0;
+      if (sportPercentage < 0 || sportPercentage > 100) {
+        console.warn(`Skipping invalid sportPercentage for sport ${schedule.sport}: ${sportPercentage}`);
+        continue;
+      }
+      const [sportRows] = await connection.execute('SELECT id FROM sports WHERE name = ?', [schedule.sport]);
+      if (sportRows.length === 0) {
+        console.warn(`Sport ${schedule.sport} not found. Skipping.`);
+        continue;
+      }
+      const sportId = sportRows[0].id;
+      const dayIndex = daysOfWeek.indexOf(schedule.day);
+      if (dayIndex === -1) {
+        console.warn(`Invalid day ${schedule.day} for sport ${schedule.sport}. Skipping.`);
+        continue;
+      }
+      await connection.execute(
+        'INSERT INTO sessions (stadium_id, sport_id, start_time, end_time, max_players, status, day_of_week, recurring, stadium_sport_cost) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [id, sportId, schedule.start_time, schedule.end_time, schedule.max_players, 'available', dayIndex + 1, 1, (sportPercentage / 100).toFixed(2)]
+      );
     }
+    
     await connection.commit();
+    console.log('Stadium updated successfully for id:', id);
     res.status(200).json({ message: 'Stadium updated successfully' });
   } catch (error) {
     await connection.rollback();
-    console.error('Error updating stadium:', error);
+    console.error('Error updating stadium:', {
+      message: error.message,
+      stack: error.stack,
+      sqlError: error.sqlMessage || 'N/A',
+      details: error
+    });
     res.status(500).json({ message: 'Error updating stadium', error: error.message });
   } finally {
     connection.release();
   }
 }
+
+// ... (other functions remain unchanged)
 
 async function deleteStadium(req, res) {
   const connection = await pool.getConnection();
