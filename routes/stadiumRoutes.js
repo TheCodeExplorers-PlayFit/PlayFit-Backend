@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 const express = require('express');
 const router = express.Router();
 const { protect, restrictTo } = require('../middleware/auth');
@@ -20,3 +21,16 @@ router.delete('/:id', protect, restrictTo('stadiumOwner'), stadiumController.del
 
 module.exports = router;
 
+=======
+// routes/stadiumRoutes.js
+const express = require('express');
+const { getStadiumsByCoachSports } = require('../controllers/stadiumController');
+const { protect } = require('../middleware/auth');
+
+const router = express.Router();
+
+// Route to get stadiums based on coach's sports
+router.get('/by-coach-sports', protect, getStadiumsByCoachSports);
+
+module.exports = router;
+>>>>>>> dev
