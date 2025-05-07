@@ -1,13 +1,12 @@
-// server.js
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 const userRoutes = require('./routes/userRoutes');
+const stadiumRoutes = require('./routes/stadiumRoutes');
 const userManagementRoutes = require('./routes/userManagementRoutes');
 const sessionRoutes = require('./routes/sessionRoutes');
-const stadiumRoutes = require('./routes/stadiumRoutes'); // From Nethmi1 branch
-const approvalsRoutes = require('./routes/approvalsRoutes'); // From dev branch
-const announcementRoutes = require('./routes/announcementRoutes'); // From dev branch
+const approvalsRoutes = require('./routes/approvalsRoutes');
+const announcementRoutes = require('./routes/announcementRoutes');
 const transactionRoutes = require('./routes/transactionRoutes');
 const bookingHistoryRoutes = require('./routes/bookingHistoryRoutes');
 const timetableRoutes = require('./routes/timetableRoutes');
@@ -20,15 +19,16 @@ app.use(cors({
   origin: 'http://localhost:4200',
   credentials: true
 }));
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Routes
-app.use('/api/users', userRoutes);
-app.use('/api/users', userManagementRoutes);
+app.use('/api/users', userRoutes); // Base user routes
+app.use('/api/users', userManagementRoutes); // Additional user management routes (note: same path, may need adjustment)
+app.use('/api/stadiums', stadiumRoutes);
 app.use('/api/sessions', sessionRoutes);
-app.use('/api/stadiums', stadiumRoutes); // From Nethmi1 branch
-app.use('/approvals', approvalsRoutes); // From dev branch
-app.use('/api/announcements', announcementRoutes); // From dev branch
+app.use('/approvals', approvalsRoutes);
+app.use('/api/announcements', announcementRoutes);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/booking-history', bookingHistoryRoutes);
 app.use('/api/timetable', timetableRoutes);

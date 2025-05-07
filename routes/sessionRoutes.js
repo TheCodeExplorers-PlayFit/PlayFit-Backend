@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
 const sessionController = require('../controllers/sessionController');
-
 router.get('/locations', sessionController.getLocations);
 router.get('/stadiums', sessionController.getStadiumsByLocationAndSport);
 router.get('/stadiums-by-location', sessionController.getStadiumsByLocation);
