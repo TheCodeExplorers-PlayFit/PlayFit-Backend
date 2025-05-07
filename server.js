@@ -11,6 +11,7 @@ const announcementRoutes = require('./routes/announcementRoutes'); // From dev b
 const transactionRoutes = require('./routes/transactionRoutes');
 const bookingHistoryRoutes = require('./routes/bookingHistoryRoutes');
 const timetableRoutes = require('./routes/timetableRoutes');
+const complaintsRoutes = require('./routes/complaintsRoutes');
 
 const app = express();
 
@@ -31,7 +32,7 @@ app.use('/api/announcements', announcementRoutes); // From dev branch
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/booking-history', bookingHistoryRoutes);
 app.use('/api/timetable', timetableRoutes);
-
+app.use('/api/complaints', complaintsRoutes);
 
 // Base route
 app.get('/', (req, res) => {
