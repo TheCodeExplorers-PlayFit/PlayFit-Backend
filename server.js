@@ -7,6 +7,7 @@ const sessionRoutes = require('./routes/sessionRoutes');
 const { HealthOfficer, HealthAppointment } = require('./models');
 const healthOfficerRoutes = require('./routes/healthOfficer.Routes');
 const healthAppointmentRoutes = require('./routes/healthAppointment.routes');
+const injuryRoutes = require('./routes/injury.routes');
 
 //  Initialize app FIRST
 const app = express();
@@ -27,6 +28,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/sessions', sessionRoutes);
 app.use('/api/healthOfficers', healthOfficerRoutes);
 app.use('/api/appointments', healthAppointmentRoutes);
+app.use('/api/injuries', injuryRoutes);
 
 
 // Base routeapp.use('/api/healthOfficers', healthOfficerRoutes)
