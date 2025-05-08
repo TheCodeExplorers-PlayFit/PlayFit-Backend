@@ -4,6 +4,7 @@ require('dotenv').config();
 const userRoutes = require('./routes/userRoutes');
 const sessionRoutes = require('./routes/sessionRoutes');
 const stadiumRoutes = require('./routes/stadiumRoutes');
+const coachSessionRoutes = require('./routes/CoachSessionRoutes'); // Add this line
 
 const app = express();
 
@@ -18,6 +19,7 @@ app.use(express.json());
 app.use('/api/users', userRoutes);
 app.use('/api/sessions', sessionRoutes);
 app.use('/api/stadiums', stadiumRoutes);
+app.use('/api/coach-sessions', coachSessionRoutes); // Add this line
 
 // Base route
 app.get('/', (req, res) => {
