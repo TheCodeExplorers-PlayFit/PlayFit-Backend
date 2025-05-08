@@ -38,7 +38,7 @@ exports.getStadiumsByCoachSports = async (req, res) => {
     const placeholders = sportsArray.map(() => '?').join(',');
     const [stadiums] = await pool.execute(
       `SELECT DISTINCT s.id, s.name, s.description, s.images, s.address, l.location_name,
-       GROUP_CONCAT(DISTINCT sp.name) as sport_names
+       s.details, GROUP_CONCAT(DISTINCT sp.name) as sport_names
        FROM stadiums s
        JOIN stadium_sports ss ON s.id = ss.stadium_id
        JOIN sports sp ON ss.sport_id = sp.id
