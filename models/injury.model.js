@@ -27,7 +27,6 @@ const Injury = sequelize.define('Injury', {
     type: DataTypes.STRING,
     allowNull: false,
   },
- // models/injury.model.js
 injury_severity: {
     type: DataTypes.ENUM('Minor', 'Moderate', 'Severe', 'Critical'), // ✅ Match this exactly
     defaultValue: 'Minor',
@@ -45,6 +44,11 @@ injury_severity: {
     type: DataTypes.TEXT,
     allowNull: true,
   },
+medical_files: {
+  type: DataTypes.STRING,
+  allowNull: true,
+}
+
 });
 
 module.exports = Injury;
