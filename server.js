@@ -1,4 +1,3 @@
-// server.js
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
@@ -6,7 +5,8 @@ const userRoutes = require('./routes/userRoutes');
 const userManagementRoutes = require('./routes/userManagementRoutes');
 const sessionRoutes = require('./routes/sessionRoutes');
 const approvalsRoutes = require('./routes/approvalsRoutes');
-const announcementRoutes = require('./routes/announcementRoutes'); // Add this line
+const announcementRoutes = require('./routes/announcementRoutes');
+const adminBlogsRoutes = require('./routes/adminBlogsRoutes'); // Add this line
 
 const app = express();
 
@@ -22,7 +22,8 @@ app.use('/api/users', userRoutes);
 app.use('/api/users', userManagementRoutes);
 app.use('/api/sessions', sessionRoutes);
 app.use('/approvals', approvalsRoutes);
-app.use('/api/announcements', announcementRoutes); // Add this line
+app.use('/api/announcements', announcementRoutes);
+app.use('/api/adminblogs', adminBlogsRoutes); // Add this line
 
 // Base route
 app.get('/', (req, res) => {
