@@ -1,10 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const CoachSessionController = require('../controllers/CoachSessionController');
+const { protect } = require('../middleware/auth'); // Import the protect middleware
 
-// Define routes
-router.get('/timetable', CoachSessionController.getWeeklyTimetable); // GET /api/coach-sessions/timetable?stadiumId=<id>&startDate=<date>
-router.put('/update-cost/:sessionId', CoachSessionController.updateCoachCost); // PUT /api/coach-sessions/update-cost/:sessionId
-router.post('/book/:sessionId', CoachSessionController.bookSession); // POST /api/coach-sessions/book/:sessionId
+// Routes
+router.get('/weekly-timetable', CoachSessionController.getWeeklyTimetable);
+router.put('/update-cost/:sessionId', CoachSessionController.updateCoachCost);
+router.put('/book-session/:sessionId', CoachSessionController.bookSession);
+router.get('/bookings', protect, CoachSessionController.getBookingHistory); // Apply protect middleware
+router.get('/details', protect, CoachSessionController.getCoachDetails); // Apply protect middleware (assuming this route is intended)
 
 module.exports = router;
