@@ -209,10 +209,9 @@ exports.bookSession = async (req, res) => {
 // Fetch booking history for a coach
 exports.getBookingHistory = async (req, res) => {
   try {
-    console.log('Received request for booking history, req.headers:', req.headers); // Debug log
-    console.log('Received request for booking history, req.user:', req.user); // Debug log
+    console.log('Received request for booking history, req.headers:', req.headers);
+    console.log('Received request for booking history, req.user:', req.user);
 
-    // Manually decode the token for debugging
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
     if (token) {
@@ -226,8 +225,8 @@ exports.getBookingHistory = async (req, res) => {
       console.log('No Authorization header or token found');
     }
 
-    const coachId = req.user?.id; // Extract coachId from req.user set by protect middleware
-    console.log('Extracted coachId:', coachId); // Debug log
+    const coachId = req.user?.id;
+    console.log('Extracted coachId:', coachId);
 
     if (!coachId) {
       return res.status(400).json({
@@ -236,7 +235,7 @@ exports.getBookingHistory = async (req, res) => {
       });
     }
 
-    console.log(`Fetching booking history for coachId: ${coachId}`); // Debug log
+    console.log(`Fetching booking history for coachId: ${coachId}`);
 
     const bookings = await executeQuery(
       `SELECT s.id, st.name AS clubName, s.day_of_week, s.start_time, s.end_time
@@ -256,19 +255,17 @@ exports.getBookingHistory = async (req, res) => {
       });
     }
 
-    // Compute the session date using day_of_week
-    const today = new Date('2025-05-17'); // Today is May 17, 2025 (Saturday)
-    const todayDayOfWeek = today.getDay() || 7; // getDay(): 0 (Sunday) to 6 (Saturday), map to 1 (Monday) to 7 (Sunday)
-    const startOfWeek = new Date(today); // Calculate Monday of the current week
-    startOfWeek.setDate(today.getDate() - (todayDayOfWeek - 1)); // Adjust to Monday (day_of_week = 1)
+    // Compute the session date using day_of_week (current date: May 18, 2025, 07:08 PM IST)
+    const today = new Date('2025-05-18T19:08:00+05:30'); // Updated to current time
+    const todayDayOfWeek = today.getDay() || 7;
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - (todayDayOfWeek - 1));
 
     const formattedBookings = bookings.map(booking => {
-      // Calculate the session date based on day_of_week
       const sessionDate = new Date(startOfWeek);
-      const dayAdjustment = booking.day_of_week - 1; // day_of_week (1 to 7) to 0-based offset from Monday
+      const dayAdjustment = (booking.day_of_week - 1);
       sessionDate.setDate(startOfWeek.getDate() + dayAdjustment);
 
-      // Format the date as DD/MM/YYYY
       const formattedDate = sessionDate.toLocaleDateString('en-GB', {
         day: '2-digit',
         month: '2-digit',
@@ -278,7 +275,7 @@ exports.getBookingHistory = async (req, res) => {
       return {
         id: booking.id,
         clubName: booking.clubName,
-        date: formattedDate, // Use computed date
+        date: formattedDate,
         time: `${booking.start_time.slice(0, 5)} - ${booking.end_time.slice(0, 5)}`
       };
     });
@@ -351,11 +348,50 @@ exports.getCoachDetails = async (req, res) => {
   }
 };
 
+// Fetch total salary for the logged-in coach
+exports.getCoachSalaries = async (req, res) => {
+  try {
+    const coachId = req.user?.id;
+    console.log('Coach ID in getCoachSalaries:', coachId);
+    if (!coachId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Coach ID is required. Please ensure you are logged in.'
+      });
+    }
+
+    const [salaries] = await executeQuery(`
+      SELECT coach_id, SUM(coach_cost * no_of_players) AS total_salary
+      FROM sessions
+      WHERE coach_id = ?
+      GROUP BY coach_id
+    `, [coachId]);
+
+    console.log('Salaries query result:', salaries);
+
+    if (!salaries || salaries.length === 0) {
+      return res.status(200).json([]);
+    }
+
+    res.status(200).json([{
+      coach_id: salaries.coach_id,
+      total_salary: parseFloat(salaries.total_salary)
+    }]);
+  } catch (error) {
+    console.error('Error fetching coach salaries:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch coach salaries',
+      error: error.message
+    });
+  }
+};
 // Export the controller functions
 module.exports = {
   getWeeklyTimetable: exports.getWeeklyTimetable,
   updateCoachCost: exports.updateCoachCost,
   bookSession: exports.bookSession,
   getBookingHistory: exports.getBookingHistory,
-  getCoachDetails: exports.getCoachDetails
+  getCoachDetails: exports.getCoachDetails,
+  getCoachSalaries: exports.getCoachSalaries
 };
