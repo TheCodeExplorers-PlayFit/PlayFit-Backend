@@ -255,8 +255,8 @@ exports.getBookingHistory = async (req, res) => {
       });
     }
 
-    // Compute the session date using day_of_week (current date: May 18, 2025, 07:08 PM IST)
-    const today = new Date('2025-05-18T19:08:00+05:30'); // Updated to current time
+    // Compute the session date using day_of_week (current date: May 18, 2025, 09:38 PM IST)
+    const today = new Date('2025-05-18T21:38:00+05:30'); // Updated to current time
     const todayDayOfWeek = today.getDay() || 7;
     const startOfWeek = new Date(today);
     startOfWeek.setDate(today.getDate() - (todayDayOfWeek - 1));
@@ -294,91 +294,90 @@ exports.getBookingHistory = async (req, res) => {
   }
 };
 
-// Fetch coach details
-exports.getCoachDetails = async (req, res) => {
-  try {
-    console.log('Received request for coach details, req.user:', req.user); // Debug log
-    const coachId = req.user?.id; // Extract coachId from req.user set by protect middleware
-
-    if (!coachId) {
-      return res.status(400).json({
-        success: false,
-        message: 'Coach ID is required. Please ensure you are logged in.'
-      });
-    }
-
-    console.log(`Fetching details for coachId: ${coachId}`); // Debug log
-
-    const coachData = await executeQuery(
-      `SELECT u.id, u.first_name, u.last_name, u.email, cd.sport1, cd.sport2, cd.sport3, cd.experience
-       FROM users u
-       LEFT JOIN coach_details cd ON u.id = cd.userId
-       WHERE u.id = ? AND u.role = 'coach'`,
-      [coachId]
-    );
-
-    if (coachData.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: 'Coach not found'
-      });
-    }
-
-    const coach = coachData[0];
-    res.status(200).json({
-      success: true,
-      coach: {
-        id: coach.id,
-        firstName: coach.first_name,
-        lastName: coach.last_name,
-        email: coach.email,
-        sport1: coach.sport1,
-        sport2: coach.sport2,
-        sport3: coach.sport3,
-        experience: coach.experience
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching coach details:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch coach details',
-      error: error.message
-    });
-  }
-};
-
-// Fetch total salary for the logged-in coach
+// Fetch total salary and coach name for the logged-in coach
 exports.getCoachSalaries = async (req, res) => {
   try {
-    const coachId = req.user?.id;
-    console.log('Coach ID in getCoachSalaries:', coachId);
+    // Log the entire req.user object for debugging
+    console.log('req.user:', req.user);
+
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+    let decodedToken = null;
+    if (token) {
+      try {
+        decodedToken = jwt.verify(token, process.env.JWT_SECRET);
+        console.log('Manually decoded token:', decodedToken);
+      } catch (error) {
+        console.log('Failed to manually decode token:', error.message);
+      }
+    } else {
+      console.log('No Authorization header or token found');
+    }
+
+    const coachId = req.user?.id || decodedToken?.id;
+    console.log('Coach ID from req.user.id or decoded token:', coachId);
+
     if (!coachId) {
+      console.log('No coachId found in req.user or token');
       return res.status(400).json({
         success: false,
         message: 'Coach ID is required. Please ensure you are logged in.'
       });
     }
 
-    const [salaries] = await executeQuery(`
+    // Ensure coachId is an integer
+    const coachIdInt = parseInt(coachId, 10);
+    if (isNaN(coachIdInt)) {
+      console.log('Invalid coachId format:', coachId);
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid Coach ID format.'
+      });
+    }
+
+    // Fetch salary data
+    const salaryData = await executeQuery(`
       SELECT coach_id, SUM(coach_cost * no_of_players) AS total_salary
       FROM sessions
       WHERE coach_id = ?
       GROUP BY coach_id
-    `, [coachId]);
+    `, [coachIdInt]);
 
-    console.log('Salaries query result:', salaries);
+    console.log('Salary query result:', salaryData);
 
-    if (!salaries || salaries.length === 0) {
+    if (!salaryData || salaryData.length === 0) {
+      console.log('No salary data found for coach_id:', coachIdInt);
       return res.status(200).json([]);
     }
 
-    res.status(200).json([{
-      coach_id: salaries.coach_id,
-      total_salary: parseFloat(salaries.total_salary)
-    }]);
+    // Fetch coach name from users table
+    const userData = await executeQuery(`
+      SELECT id, CONCAT(first_name, ' ', COALESCE(last_name, '')) AS coach_name
+      FROM users
+      WHERE id = ?
+    `, [coachIdInt]);
+
+    console.log('User query result:', userData);
+
+    if (!userData || userData.length === 0) {
+      console.log('No user data found for coach_id:', coachIdInt);
+      return res.status(404).json({
+        success: false,
+        message: 'User not found for the given Coach ID.'
+      });
+    }
+
+    const response = [{
+      coach_id: salaryData[0].coach_id,
+      total_salary: parseFloat(salaryData[0].total_salary),
+      coach_name: userData[0].coach_name || 'Name not available'
+    }];
+
+    console.log('Final response sent to frontend:', response);
+
+    res.status(200).json(response);
   } catch (error) {
-    console.error('Error fetching coach salaries:', error);
+    console.error('Error fetching coach salaries:', error.message, error.stack);
     res.status(500).json({
       success: false,
       message: 'Failed to fetch coach salaries',
@@ -386,12 +385,12 @@ exports.getCoachSalaries = async (req, res) => {
     });
   }
 };
+
 // Export the controller functions
 module.exports = {
   getWeeklyTimetable: exports.getWeeklyTimetable,
   updateCoachCost: exports.updateCoachCost,
   bookSession: exports.bookSession,
   getBookingHistory: exports.getBookingHistory,
-  getCoachDetails: exports.getCoachDetails,
   getCoachSalaries: exports.getCoachSalaries
 };
