@@ -7,7 +7,6 @@ router.get('/weekly-timetable', CoachSessionController.getWeeklyTimetable);
 router.put('/update-cost/:sessionId', CoachSessionController.updateCoachCost);
 router.put('/book-session/:sessionId', CoachSessionController.bookSession);
 router.get('/bookings', protect, CoachSessionController.getBookingHistory);
-router.get('/details', protect, CoachSessionController.getCoachDetails);
 router.get('/salaries', protect, CoachSessionController.getCoachSalaries); // Protected route
 
 module.exports = router;

@@ -14,7 +14,7 @@ async function executeQuery(sql, params = []) {
 }
 
 // Fetch weekly timetable for a stadium
-exports.getWeeklyTimetable = async (req, res) => {
+async function getWeeklyTimetable(req, res) {
   try {
     const { stadiumId, startDate } = req.query;
     if (!stadiumId) {
@@ -79,10 +79,10 @@ exports.getWeeklyTimetable = async (req, res) => {
       error: error.message
     });
   }
-};
+}
 
 // Update coach cost for a session
-exports.updateCoachCost = async (req, res) => {
+async function updateCoachCost(req, res) {
   try {
     const { sessionId } = req.params;
     const { coachCost } = req.body;
@@ -160,10 +160,10 @@ exports.updateCoachCost = async (req, res) => {
       });
     }
   }
-};
+}
 
 // Book a session (set isbooked to 1, update coach_id and status)
-exports.bookSession = async (req, res) => {
+async function bookSession(req, res) {
   try {
     const { sessionId } = req.params;
     const { coachId } = req.body;
@@ -204,10 +204,10 @@ exports.bookSession = async (req, res) => {
       error: error.message
     });
   }
-};
+}
 
 // Fetch booking history for a coach
-exports.getBookingHistory = async (req, res) => {
+async function getBookingHistory(req, res) {
   try {
     console.log('Received request for booking history, req.headers:', req.headers);
     console.log('Received request for booking history, req.user:', req.user);
@@ -255,8 +255,8 @@ exports.getBookingHistory = async (req, res) => {
       });
     }
 
-    // Compute the session date using day_of_week (current date: May 18, 2025, 09:38 PM IST)
-    const today = new Date('2025-05-18T21:38:00+05:30'); // Updated to current time
+    // Compute the session date using day_of_week (current date: May 20, 2025)
+    const today = new Date('2025-05-20T00:24:00+05:30');
     const todayDayOfWeek = today.getDay() || 7;
     const startOfWeek = new Date(today);
     startOfWeek.setDate(today.getDate() - (todayDayOfWeek - 1));
@@ -292,12 +292,11 @@ exports.getBookingHistory = async (req, res) => {
       error: error.message
     });
   }
-};
+}
 
 // Fetch total salary and coach name for the logged-in coach
-exports.getCoachSalaries = async (req, res) => {
+async function getCoachSalaries(req, res) {
   try {
-    // Log the entire req.user object for debugging
     console.log('req.user:', req.user);
 
     const authHeader = req.headers['authorization'];
@@ -325,7 +324,6 @@ exports.getCoachSalaries = async (req, res) => {
       });
     }
 
-    // Ensure coachId is an integer
     const coachIdInt = parseInt(coachId, 10);
     if (isNaN(coachIdInt)) {
       console.log('Invalid coachId format:', coachId);
@@ -335,7 +333,6 @@ exports.getCoachSalaries = async (req, res) => {
       });
     }
 
-    // Fetch salary data
     const salaryData = await executeQuery(`
       SELECT coach_id, SUM(coach_cost * no_of_players) AS total_salary
       FROM sessions
@@ -350,7 +347,6 @@ exports.getCoachSalaries = async (req, res) => {
       return res.status(200).json([]);
     }
 
-    // Fetch coach name from users table
     const userData = await executeQuery(`
       SELECT id, CONCAT(first_name, ' ', COALESCE(last_name, '')) AS coach_name
       FROM users
@@ -384,13 +380,13 @@ exports.getCoachSalaries = async (req, res) => {
       error: error.message
     });
   }
-};
+}
 
 // Export the controller functions
 module.exports = {
-  getWeeklyTimetable: exports.getWeeklyTimetable,
-  updateCoachCost: exports.updateCoachCost,
-  bookSession: exports.bookSession,
-  getBookingHistory: exports.getBookingHistory,
-  getCoachSalaries: exports.getCoachSalaries
+  getWeeklyTimetable,
+  updateCoachCost,
+  bookSession,
+  getBookingHistory,
+  getCoachSalaries
 };
