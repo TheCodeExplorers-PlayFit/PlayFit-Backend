@@ -1,15 +1,13 @@
 const pool = require('../config/db');
-const fs = require('fs').promises;
-const path = require('path');
 
 async function addStadium(req, res) {
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
 
-    const { name, address, google_maps_link, facilities, description, details, images, schedule } = req.body;
+    const { name, address, google_maps_link, facilities, images, schedule } = req.body;
 
-    console.log('Received stadium data:', { name, address, google_maps_link, facilities, description, details, images, schedule });
+    console.log('Received stadium data:', { name, address, google_maps_link, facilities, images, schedule });
 
     if (!name || !address || !google_maps_link || !schedule) {
       return res.status(400).json({ message: 'Missing required fields: name, address, google_maps_link, or schedule' });
@@ -28,38 +26,23 @@ async function addStadium(req, res) {
       }
     }
 
-    let imagePaths = '';
-    if (images && Array.isArray(images)) {
-      const uploadDir = path.join(__dirname, '..', 'Uploads');
-      await fs.mkdir(uploadDir, { recursive: true });
-      imagePaths = await Promise.all(images.map(async (base64, index) => {
-        const matches = base64.match(/^data:image\/([a-zA-Z]+);base64,(.+)$/);
-        if (!matches) {
-          throw new Error('Invalid image format');
-        }
-        const ext = matches[1];
-        const data = matches[2];
-        const filename = `${Date.now()}-${index}.${ext}`;
-        const filePath = path.join(uploadDir, filename);
-        await fs.writeFile(filePath, Buffer.from(data, 'base64'));
-        return `/uploads/${filename}`;
-      }));
-      imagePaths = imagePaths.join(',');
+    // Validate images (expecting Cloudinary URLs)
+    if (!Array.isArray(images) || images.length === 0) {
+      return res.status(400).json({ message: 'At least one image URL is required' });
     }
+    const imagePaths = images.join(','); // Store as comma-separated string
 
     const ownerId = req.user.id;
 
     const sqlStadium = `
-      INSERT INTO stadiums (name, address, google_maps_link, facilities, description, details, images, owner_id, isVerified)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO stadiums (name, address, google_maps_link, facilities, images, owner_id, isVerified)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `;
     const [stadiumResult] = await connection.execute(sqlStadium, [
       name,
       address,
       google_maps_link,
       facilities || null,
-      description || null,
-      details || null,
       imagePaths,
       ownerId,
       0
@@ -301,8 +284,8 @@ async function getStadiums(req, res) {
 async function updateStadium(req, res) {
   const connection = await pool.getConnection();
   try {
-    const { id, name, address, google_maps_link, facilities, description, details, images, schedule } = req.body;
-    console.log('Updating stadium with data:', { id, name, address, google_maps_link, facilities, description, details, images, schedule });
+    const { id, name, address, google_maps_link, facilities, images, schedule } = req.body;
+    console.log('Updating stadium with data:', { id, name, address, google_maps_link, facilities, images, schedule });
 
     if (!id || !name || !address || !google_maps_link || !schedule || !Array.isArray(schedule)) {
       return res.status(400).json({ message: 'Missing required fields: id, name, address, google_maps_link, or schedule' });
@@ -319,31 +302,11 @@ async function updateStadium(req, res) {
 
     await connection.beginTransaction();
 
-    let imagePaths = images;
-    if (Array.isArray(images) && images.some(img => img.startsWith('data:image'))) {
-      const uploadDir = path.join(__dirname, '..', 'Uploads');
-      await fs.mkdir(uploadDir, { recursive: true });
-      imagePaths = await Promise.all(images.map(async (base64, index) => {
-        if (!base64.startsWith('data:image')) {
-          return base64;
-        }
-        const matches = base64.match(/^data:image\/([a-zA-Z]+);base64,(.+)$/);
-        if (!matches) {
-          throw new Error('Invalid image format');
-        }
-        const ext = matches[1];
-        const data = matches[2];
-        const filename = `${Date.now()}-${index}.${ext}`;
-        const filePath = path.join(uploadDir, filename);
-        await fs.writeFile(filePath, Buffer.from(data, 'base64'));
-        return `/Uploads/${filename}`;
-      }));
-      imagePaths = imagePaths.join(',');
-    }
+    const imagePaths = Array.isArray(images) ? images.join(',') : images; // Store as comma-separated string
 
     const sqlUpdate = `
       UPDATE stadiums
-      SET name = ?, address = ?, google_maps_link = ?, facilities = ?, description = ?, details = ?, images = ?
+      SET name = ?, address = ?, google_maps_link = ?, facilities = ?, images = ?
       WHERE id = ? AND owner_id = ?
     `;
     const [updateResult] = await connection.execute(sqlUpdate, [
@@ -351,8 +314,6 @@ async function updateStadium(req, res) {
       address,
       google_maps_link,
       facilities || null,
-      description || null,
-      details || null,
       imagePaths || '',
       id,
       req.user.id
@@ -482,5 +443,4 @@ module.exports = {
   getStadiums,
   updateStadium,
   deleteStadium
-  
 };
