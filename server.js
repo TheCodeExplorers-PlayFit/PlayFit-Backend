@@ -13,6 +13,7 @@ const bookingHistoryRoutes = require('./routes/bookingHistoryRoutes');
 const timetableRoutes = require('./routes/timetableRoutes');
 const complaintsRoutes = require('./routes/complaintsRoutes');
 const maintenanceRequestsRoutes = require('./routes/maintenanceRequestsRoutes');
+const playerPackageRoutes = require('./routes/playerPackageRoutes');
 
 const app = express();
 
@@ -44,6 +45,7 @@ app.use('/api/booking-history', bookingHistoryRoutes);
 app.use('/api/timetable', timetableRoutes);
 app.use('/api/complaints', complaintsRoutes);
 app.use('/api/stadium-owner', maintenanceRequestsRoutes);
+app.use('/api/player-packages', playerPackageRoutes);
 
 app.get('/', (req, res) => {
   res.send('Sports App API is running');
