@@ -255,11 +255,11 @@ async function getBookingHistory(req, res) {
       });
     }
 
-    // Compute the session date using day_of_week (current date: May 20, 2025)
-    const today = new Date('2025-05-20T00:24:00+05:30');
-    const todayDayOfWeek = today.getDay() || 7;
+    // Compute the session date using day_of_week (current date: May 21, 2025)
+    const today = new Date('2025-05-21T17:03:00+05:30'); // Updated to 05:03 PM +0530, May 21, 2025
+    const todayDayOfWeek = today.getDay() || 7; // Wednesday = 3
     const startOfWeek = new Date(today);
-    startOfWeek.setDate(today.getDate() - (todayDayOfWeek - 1));
+    startOfWeek.setDate(today.getDate() - (todayDayOfWeek - 1)); // Start of week: May 19, 2025 (Monday)
 
     const formattedBookings = bookings.map(booking => {
       const sessionDate = new Date(startOfWeek);
