@@ -2,10 +2,14 @@ const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
 require('dotenv').config();
+
 const userRoutes = require('./routes/userRoutes');
 const userManagementRoutes = require('./routes/userManagementRoutes');
 const sessionRoutes = require('./routes/sessionRoutes');
 const stadiumRoutes = require('./routes/stadiumRoutes');
+const coachSessionRoutes = require('./routes/CoachSessionRoutes'); // from nethmi3
+
+// from dev2
 const approvalsRoutes = require('./routes/approvalsRoutes');
 const announcementRoutes = require('./routes/announcementRoutes');
 const transactionRoutes = require('./routes/transactionRoutes');
@@ -37,6 +41,9 @@ app.use('/api/users', userRoutes);
 app.use('/api/users', userManagementRoutes);
 app.use('/api/sessions', sessionRoutes);
 app.use('/api/stadiums', stadiumRoutes);
+app.use('/api/coach-sessions', coachSessionRoutes); // from nethmi3
+
+// extra routes from dev2
 app.use('/approvals', approvalsRoutes);
 app.use('/api/announcements', announcementRoutes);
 app.use('/api/transactions', transactionRoutes);
