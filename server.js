@@ -1,27 +1,57 @@
 const express = require('express');
 const cors = require('cors');
+const multer = require('multer');
 require('dotenv').config();
+
 const userRoutes = require('./routes/userRoutes');
+const userManagementRoutes = require('./routes/userManagementRoutes');
 const sessionRoutes = require('./routes/sessionRoutes');
 const stadiumRoutes = require('./routes/stadiumRoutes');
-const coachSessionRoutes = require('./routes/CoachSessionRoutes'); // Add this line
+const coachSessionRoutes = require('./routes/CoachSessionRoutes'); // from nethmi3
+
+// from dev2
+const approvalsRoutes = require('./routes/approvalsRoutes');
+const announcementRoutes = require('./routes/announcementRoutes');
+const transactionRoutes = require('./routes/transactionRoutes');
+const bookingHistoryRoutes = require('./routes/bookingHistoryRoutes');
+const timetableRoutes = require('./routes/timetableRoutes');
+const complaintsRoutes = require('./routes/complaintsRoutes');
+const maintenanceRequestsRoutes = require('./routes/maintenanceRequestsRoutes');
 
 const app = express();
 
-// Middleware
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'Uploads/');
+  },
+  filename: (req, file, cb) => {
+    cb(null, `${Date.now()}-${file.originalname}`);
+  }
+});
+const upload = multer({ storage });
+
 app.use(cors({
   origin: 'http://localhost:4200',
   credentials: true
 }));
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+app.use('/uploads', express.static('Uploads'));
 
-// Routes
 app.use('/api/users', userRoutes);
+app.use('/api/users', userManagementRoutes);
 app.use('/api/sessions', sessionRoutes);
 app.use('/api/stadiums', stadiumRoutes);
-app.use('/api/coach-sessions', coachSessionRoutes); // Add this line
+app.use('/api/coach-sessions', coachSessionRoutes); // from nethmi3
 
-// Base route
+// extra routes from dev2
+app.use('/approvals', approvalsRoutes);
+app.use('/api/announcements', announcementRoutes);
+app.use('/api/transactions', transactionRoutes);
+app.use('/api/booking-history', bookingHistoryRoutes);
+app.use('/api/timetable', timetableRoutes);
+app.use('/api/complaints', complaintsRoutes);
+app.use('/api/stadium-owner', maintenanceRequestsRoutes);
+
 app.get('/', (req, res) => {
   res.send('Sports App API is running');
 });
