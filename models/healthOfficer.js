@@ -1,7 +1,7 @@
 // File: models/HealthOfficer.js
 
 const { DataTypes } = require('sequelize');
-const sequelize = require('../config/db');
+const { sequelize } = require('../config/db');
 
 const HealthOfficer = sequelize.define('HealthOfficer', {
   id: {

@@ -1,4 +1,5 @@
-const pool = require('../config/db');
+const { pool } = require('../config/db');
+
 
 // Helper function to execute SQL with parameters
 async function executeQuery(sql, params = []) {

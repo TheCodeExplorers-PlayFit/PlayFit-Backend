@@ -1,4 +1,4 @@
-const db = require('../config/db');
+const { pool } = require('../config/db');
 
 // Get all users except admins with counts
 exports.getAllUsers = async (req, res) => {

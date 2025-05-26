@@ -1,7 +1,7 @@
 // File: models/HealthAppointment.js
 
 const { DataTypes } = require('sequelize');
-const sequelize = require('../config/db');
+const { sequelize } = require('../config/db');
 const HealthOfficer = require('./healthOfficer'); // ✅ Fix case-sensitive import
 
 const HealthAppointment = sequelize.define('HealthAppointment', {
