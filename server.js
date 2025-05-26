@@ -1,15 +1,21 @@
 const express = require('express');
 const cors = require('cors');
+const dotenv = require('dotenv');
 const multer = require('multer');
-require('dotenv').config();
+dotenv.config();
 
+const { sequelize } = require('./config/db'); // Adjusted to match correct export structure
+
+// Routes
 const userRoutes = require('./routes/userRoutes');
 const userManagementRoutes = require('./routes/userManagementRoutes');
 const sessionRoutes = require('./routes/sessionRoutes');
-const stadiumRoutes = require('./routes/stadiumRoutes');
-const coachSessionRoutes = require('./routes/CoachSessionRoutes'); // from nethmi3
+const healthOfficerRoutes = require('./routes/healthOfficer.Routes');
+const healthAppointmentRoutes = require('./routes/healthAppointment.routes');
+const injuryRoutes = require('./routes/injury.routes');
 
-// from dev2
+const stadiumRoutes = require('./routes/stadiumRoutes');
+const coachSessionRoutes = require('./routes/CoachSessionRoutes');
 const approvalsRoutes = require('./routes/approvalsRoutes');
 const announcementRoutes = require('./routes/announcementRoutes');
 const transactionRoutes = require('./routes/transactionRoutes');
@@ -18,8 +24,14 @@ const timetableRoutes = require('./routes/timetableRoutes');
 const complaintsRoutes = require('./routes/complaintsRoutes');
 const maintenanceRequestsRoutes = require('./routes/maintenanceRequestsRoutes');
 
-const app = express();
+// Cloudinary Debug (Optional)
+console.log('Cloudinary Config:', {
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET ? 'Set (hidden)' : 'Not set'
+});
 
+// Multer Setup
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, 'Uploads/');
@@ -30,6 +42,10 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
+// Initialize Express
+const app = express();
+
+// Middleware
 app.use(cors({
   origin: 'http://localhost:4200',
   credentials: true
@@ -37,13 +53,16 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use('/uploads', express.static('Uploads'));
 
+// API Routes
 app.use('/api/users', userRoutes);
 app.use('/api/users', userManagementRoutes);
 app.use('/api/sessions', sessionRoutes);
-app.use('/api/stadiums', stadiumRoutes);
-app.use('/api/coach-sessions', coachSessionRoutes); // from nethmi3
+app.use('/api/healthOfficers', healthOfficerRoutes);
+app.use('/api/appointments', healthAppointmentRoutes);
+app.use('/api/injuries', injuryRoutes);
 
-// extra routes from dev2
+app.use('/api/stadiums', stadiumRoutes);
+app.use('/api/coach-sessions', coachSessionRoutes);
 app.use('/approvals', approvalsRoutes);
 app.use('/api/announcements', announcementRoutes);
 app.use('/api/transactions', transactionRoutes);
@@ -52,11 +71,26 @@ app.use('/api/timetable', timetableRoutes);
 app.use('/api/complaints', complaintsRoutes);
 app.use('/api/stadium-owner', maintenanceRequestsRoutes);
 
+// Root route
 app.get('/', (req, res) => {
   res.send('Sports App API is running');
 });
 
+// Database Connection
+(async () => {
+  try {
+    await sequelize.authenticate();
+    console.log('✅ Database connected successfully');
+
+    await sequelize.sync({ alter: true });
+    console.log('✅ Models synced successfully');
+  } catch (error) {
+    console.error('❌ Unable to connect to database:', error);
+  }
+})();
+
+// Start Server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
 });
