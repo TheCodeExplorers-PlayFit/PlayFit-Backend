@@ -16,7 +16,7 @@ async function executeQuery(sql, params = []) {
 // Fetch weekly timetable for a stadium
 async function getWeeklyTimetable(req, res) {
   try {
-    const { stadiumId, startDate } = req.query;
+    const { stadiumId, startDate, endDate } = req.query;
     if (!stadiumId) {
       return res.status(400).json({
         success: false,
@@ -24,15 +24,13 @@ async function getWeeklyTimetable(req, res) {
       });
     }
 
-    const start = startDate ? new Date(startDate) : new Date();
+    const today = new Date(); // Today: May 31, 2025
+    today.setHours(0, 0, 0, 0);
+    const start = startDate ? new Date(startDate) : new Date(today);
     start.setHours(0, 0, 0, 0);
-    if (!startDate) {
-      const day = start.getDay();
-      start.setDate(start.getDate() - (day === 0 ? 6 : day - 1));
-    }
 
-    const end = new Date(start);
-    end.setDate(start.getDate() + 6);
+    const end = endDate ? new Date(endDate) : new Date(today);
+    end.setDate(today.getDate() + 7); // June 7, 2025
     end.setHours(23, 59, 59, 999);
 
     const sessions = await executeQuery(
@@ -43,13 +41,14 @@ async function getWeeklyTimetable(req, res) {
          SELECT DISTINCT stadium_id, sport_id
          FROM stadium_sports
        ) ss ON s.stadium_id = ss.stadium_id AND s.sport_id = ss.sport_id
-       WHERE s.stadium_id = ? AND s.isbooked = 0`,
+       WHERE s.stadium_id = ? AND s.isbooked = 0 AND s.recurring = 1`,
       [stadiumId]
     );
 
     const currentWeekSessions = sessions.map(session => {
       const sessionDate = new Date(start);
-      const dayAdjustment = (session.day_of_week - 1) - (start.getDay() === 0 ? 6 : start.getDay() - 1);
+      const currentDayOfWeek = start.getDay() === 0 ? 7 : start.getDay(); // Today (Saturday) = 6
+      const dayAdjustment = (session.day_of_week - currentDayOfWeek + 7) % 7; // Calculate days to add
       sessionDate.setDate(start.getDate() + dayAdjustment);
       return {
         ...session,
@@ -57,7 +56,7 @@ async function getWeeklyTimetable(req, res) {
       };
     }).filter(session => {
       const sessionDate = new Date(session.session_date);
-      return session.recurring === 1 && sessionDate >= start && sessionDate <= end;
+      return sessionDate >= start && sessionDate <= end;
     });
 
     if (currentWeekSessions.length === 0) {
@@ -162,11 +161,12 @@ async function updateCoachCost(req, res) {
   }
 }
 
-// Book a session (set isbooked to 1, update coach_id and status)
 async function bookSession(req, res) {
   try {
     const { sessionId } = req.params;
     const { coachId } = req.body;
+
+    console.log(`Booking session: sessionId=${sessionId}, coachId=${coachId}`);
 
     if (!sessionId || !coachId) {
       return res.status(400).json({
@@ -187,10 +187,29 @@ async function bookSession(req, res) {
       });
     }
 
-    await executeQuery(
-      `UPDATE sessions SET isbooked = 1, coach_id = ?, status = 'booked' WHERE id = ?`,
+    const [coach] = await executeQuery(
+      `SELECT id FROM users WHERE id = ?`, // Or `coaches` if applicable
+      [coachId]
+    );
+
+    if (!coach) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid Coach ID: Coach does not exist'
+      });
+    }
+
+    const result = await executeQuery(
+      `UPDATE sessions SET coach_id = ?, isbooked = 1, status = 'booked' WHERE id = ? AND isbooked = 0`,
       [coachId, sessionId]
     );
+
+    if (result.affectedRows === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Session already booked or update failed'
+      });
+    }
 
     res.status(200).json({
       success: true,
@@ -198,14 +217,17 @@ async function bookSession(req, res) {
     });
   } catch (error) {
     console.error('Error booking session:', error);
+    let message = 'Failed to book session';
+    if (error.code === 'ER_NO_REFERENCED_ROW_2' || error.code === 'ER_ROW_IS_REFERENCED_2') {
+      message = 'Invalid Coach ID: Coach does not exist in the database';
+    }
     res.status(500).json({
       success: false,
-      message: 'Failed to book session',
+      message,
       error: error.message
     });
   }
 }
-
 // Fetch booking history for a coach
 async function getBookingHistory(req, res) {
   try {
@@ -225,7 +247,7 @@ async function getBookingHistory(req, res) {
       console.log('No Authorization header or token found');
     }
 
-    const coachId = req.user?.id;
+    const coachId = req.params.coachId || req.user?.id; // Use URL param or logged-in coachId
     console.log('Extracted coachId:', coachId);
 
     if (!coachId) {
@@ -255,11 +277,10 @@ async function getBookingHistory(req, res) {
       });
     }
 
-    // Compute the session date using day_of_week (current date: May 21, 2025)
-    const today = new Date('2025-05-21T17:03:00+05:30'); // Updated to 05:03 PM +0530, May 21, 2025
-    const todayDayOfWeek = today.getDay() || 7; // Wednesday = 3
+    const today = new Date('2025-06-01T12:43:00+05:30'); // Current date and time
+    const todayDayOfWeek = today.getDay() || 7; // Sunday = 0, so 7
     const startOfWeek = new Date(today);
-    startOfWeek.setDate(today.getDate() - (todayDayOfWeek - 1)); // Start of week: May 19, 2025 (Monday)
+    startOfWeek.setDate(today.getDate() - (todayDayOfWeek - 1));
 
     const formattedBookings = bookings.map(booking => {
       const sessionDate = new Date(startOfWeek);

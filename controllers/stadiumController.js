@@ -204,8 +204,5 @@ async function getStadiumsByCoachSports(req, res) {
 
 module.exports = {
   addStadium,
-  getStadiumsByCoachSports,
-  getStadiums,
-  updateStadium,
-  deleteStadium
+  getStadiumsByCoachSports
 };
