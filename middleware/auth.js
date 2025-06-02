@@ -33,6 +33,7 @@ exports.protect = async (req, res, next) => {
       }
       
       req.user = users[0];
+      console.log('Authenticated user:', req.user); // ✅ Add this
       next();
       
     } catch (error) {
@@ -63,3 +64,5 @@ exports.restrictTo = (...roles) => {
     next();
   };
 };
+
+

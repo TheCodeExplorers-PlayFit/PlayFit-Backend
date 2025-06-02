@@ -104,20 +104,20 @@ async function addStadium(req, res) {
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
         await connection.execute(sqlSession, [
-          stadiumId,
-          sportId,
-          null,
-          dayNum,
-          fromTime,
-          toTime,
-          maxPlayers,
-          0.00,
-          sportCost || sportPercentage,
-          0.00,
-          0,
-          1,
-          'available'
-        ]);
+  stadiumId,
+  sportId,
+  req.user.role === 'coach' ? req.user.id : null,
+  dayNum,
+  fromTime,
+  toTime,
+  maxPlayers,
+  0.00,
+  sportCost || sportPercentage,
+  0.00,
+  0,
+  1,
+  'available'
+]);
       }
     }
 

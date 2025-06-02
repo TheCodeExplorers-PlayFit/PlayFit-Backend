@@ -403,6 +403,7 @@ async function getCoachSalaries(req, res) {
   }
 }
 
+
 // Export the controller functions
 module.exports = {
   getWeeklyTimetable,
