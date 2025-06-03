@@ -31,6 +31,7 @@ exports.getSports = async (req, res) => {
   }
 };
 
+//Handles user registration for players, coaches, medical officers, and stadium owners.
 exports.registerUser = async (req, res) => {
   try {
     const connection = await pool.getConnection();
@@ -90,7 +91,7 @@ exports.registerUser = async (req, res) => {
           const { sport1 = null, sport2 = null, sport3 = null, experience = null, documentPath = null } = req.body;
           console.log('Coach data received:', { sport1, sport2, sport3, experience, documentPath });
           if (!sport1 || !experience) {
-            throw new Error('Missing required fields for coach: sport1, experience');
+            throw new Error('Missing required fields for coach: sport1, experience'); //check if one sport and experience entered successfully
           }
           // Validate sport1 exists in sports table
           const [sport1Exists] = await connection.execute('SELECT id FROM sports WHERE id = ?', [sport1]);
