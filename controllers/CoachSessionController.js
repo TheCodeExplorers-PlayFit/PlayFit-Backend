@@ -188,7 +188,7 @@ async function bookSession(req, res) {
     }
 
     const [coach] = await executeQuery(
-      `SELECT id FROM users WHERE id = ?`, // Or `coaches` if applicable
+      `SELECT id FROM users WHERE id = ?`, 
       [coachId]
     );
 
@@ -247,7 +247,7 @@ async function getBookingHistory(req, res) {
       console.log('No Authorization header or token found');
     }
 
-    const coachId = req.params.coachId || req.user?.id; // Use URL param or logged-in coachId
+    const coachId = req.params.coachId || req.user?.id; 
     console.log('Extracted coachId:', coachId);
 
     if (!coachId) {
