@@ -24,13 +24,13 @@ async function getWeeklyTimetable(req, res) {
       });
     }
 
-    const today = new Date(); // Today: May 31, 2025
+    const today = new Date(); 
     today.setHours(0, 0, 0, 0);
     const start = startDate ? new Date(startDate) : new Date(today);
     start.setHours(0, 0, 0, 0);
 
     const end = endDate ? new Date(endDate) : new Date(today);
-    end.setDate(today.getDate() + 7); // June 7, 2025
+    end.setDate(today.getDate() + 7); 
     end.setHours(23, 59, 59, 999);
 
     const sessions = await executeQuery(
@@ -47,8 +47,8 @@ async function getWeeklyTimetable(req, res) {
 
     const currentWeekSessions = sessions.map(session => {
       const sessionDate = new Date(start);
-      const currentDayOfWeek = start.getDay() === 0 ? 7 : start.getDay(); // Today (Saturday) = 6
-      const dayAdjustment = (session.day_of_week - currentDayOfWeek + 7) % 7; // Calculate days to add
+      const currentDayOfWeek = start.getDay() === 0 ? 7 : start.getDay(); 
+      const dayAdjustment = (session.day_of_week - currentDayOfWeek + 7) % 7; 
       sessionDate.setDate(start.getDate() + dayAdjustment);
       return {
         ...session,
@@ -93,6 +93,7 @@ async function updateCoachCost(req, res) {
         success: false,
         message: 'Session ID and a valid coach cost are required'
       });
+      
     }
 
     const [session] = await executeQuery(
@@ -277,8 +278,8 @@ async function getBookingHistory(req, res) {
       });
     }
 
-    const today = new Date('2025-06-01T12:43:00+05:30'); // Current date and time
-    const todayDayOfWeek = today.getDay() || 7; // Sunday = 0, so 7
+    const today = new Date();
+    const todayDayOfWeek = today.getDay() || 7; // Sunday = 0
     const startOfWeek = new Date(today);
     startOfWeek.setDate(today.getDate() - (todayDayOfWeek - 1));
 
