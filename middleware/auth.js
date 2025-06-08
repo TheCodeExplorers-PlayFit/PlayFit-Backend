@@ -24,6 +24,7 @@ exports.protect = async (req, res, next) => {
         return res.status(404).json({ success: false, message: 'User not found' });
       }
       req.user = users[0];
+      console.log('Authenticated user:', req.user); // ✅ Add this
       next();
     } catch (error) {
       console.log('JWT Error:', error.message);
@@ -46,3 +47,5 @@ exports.restrictTo = (...roles) => {
     next();
   };
 };
+
+
