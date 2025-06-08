@@ -1,5 +1,5 @@
 const mysql = require('mysql2/promise');
-const pool = require('../config/db');
+const { pool } = require('../config/db');
 const jwt = require('jsonwebtoken'); // For manual token decoding (debugging)
 
 // Helper function to execute SQL with parameters

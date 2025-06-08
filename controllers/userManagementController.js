@@ -1,16 +1,15 @@
-const db = require('../config/db');
+const { pool } = require('../config/db');
 
 // Get all users except admins with counts
 exports.getAllUsers = async (req, res) => {
   try {
-    // Fetch all users except admins
-    const [users] = await db.query(`
+    const [users] = await pool.execute(`
       SELECT 
         u.id, 
-        u.first_name, 
-        u.last_name, 
+        u.first_Name as first_name, 
+        u.last_Name as last_name, 
         u.email, 
-        u.mobile_number AS phone, 
+        u.mobile_Number as phone, 
         u.role,
         u.gender,
         u.age,
@@ -20,7 +19,6 @@ exports.getAllUsers = async (req, res) => {
       WHERE u.role != 'admin'
     `);
 
-    // Calculate role-wise counts
     const roleCounts = users.reduce((acc, user) => {
       acc[user.role] = (acc[user.role] || 0) + 1;
       return acc;
@@ -51,7 +49,7 @@ exports.deleteUser = async (req, res) => {
   const { id } = req.params;
 
   try {
-    const [user] = await db.query('SELECT * FROM users WHERE id = ?', [id]);
+    const [user] = await pool.execute('SELECT * FROM users WHERE id = ?', [id]);
 
     if (!user.length) {
       return res.status(404).json({
@@ -60,7 +58,7 @@ exports.deleteUser = async (req, res) => {
       });
     }
 
-    await db.query('DELETE FROM users WHERE id = ?', [id]);
+    await pool.execute('DELETE FROM users WHERE id = ?', [id]);
 
     res.status(200).json({
       success: true,

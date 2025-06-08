@@ -1,4 +1,4 @@
-const pool = require('../config/db');
+const { pool } = require('../config/db');
 const crypto = require('crypto');
 
 // Helper function to execute SQL with parameters

@@ -1,11 +1,4 @@
-const mysql = require('mysql2/promise');
-
-const pool = mysql.createPool({
-  host: 'localhost',
-  user: 'root', // Update with your MySQL username
-  password: '', // Update with your MySQL password
-  database: 'sports_app'
-});
+const { pool } = require('../config/db');
 
 exports.getUnverifiedUsers = async (req, res) => {
   try {
