@@ -1,11 +1,5 @@
 const mysql = require('mysql2/promise');
-const pool = mysql.createPool({
-  host: '127.0.0.1',
-  user: 'root',
-  password: '',
-  database: 'sports_app',
-  port: 3306
-});
+const pool = require('../config/db');
 
 // Get all maintenance requests for stadium owner
 exports.getMaintenanceRequests = async (req, res) => {

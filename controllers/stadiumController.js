@@ -1,23 +1,27 @@
-const pool = require('../config/db');
+const pool = require('../config/db');// Import database connection pool from configuration
 
+// Handles POST /api/stadiums to add a new stadium
 async function addStadium(req, res) {
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
 
+     // Destructure stadium data from request body
     const { name, address, google_maps_link, facilities, images, schedule } = req.body;
 
     console.log('Received stadium data:', { name, address, google_maps_link, facilities, images, schedule });
-
+     // Validate required fields
     if (!name || !address || !google_maps_link || !schedule) {
       return res.status(400).json({ message: 'Missing required fields: name, address, google_maps_link, or schedule' });
     }
 
+    // Validate schedule as a non-empty array
     if (!Array.isArray(schedule) || schedule.length === 0) {
       return res.status(400).json({ message: 'Schedule must be a non-empty array' });
     }
 
     for (const row of schedule) {
+      // Check sportPercentage is a valid number between 0 and 100
       if (typeof row.sportPercentage !== 'number' || row.sportPercentage < 0 || row.sportPercentage > 100) {
         return res.status(400).json({ message: `Invalid sportPercentage for sport ${row.sport}: must be a number between 0 and 100` });
       }
@@ -26,14 +30,17 @@ async function addStadium(req, res) {
       }
     }
 
-    // Validate images (expecting Cloudinary URLs)
+    // Validate images as a non-empty array of URLs(expecting Cloudinary URLs)
     if (!Array.isArray(images) || images.length === 0) {
       return res.status(400).json({ message: 'At least one image URL is required' });
     }
-    const imagePaths = images.join(','); // Store as comma-separated string
-
+  
+  // Join image URLs into a comma-separated string for storage
+    const imagePaths = images.join(','); 
+    // Get owner ID from authenticated user (set by protect middleware)
     const ownerId = req.user.id;
 
+    // Insert stadium into the database
     const sqlStadium = `
       INSERT INTO stadiums (name, address, google_maps_link, facilities, images, owner_id, isVerified)
       VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -45,7 +52,7 @@ async function addStadium(req, res) {
       facilities || null,
       imagePaths,
       ownerId,
-      0
+      0// isVerified defaults to false
     ]);
     const stadiumId = stadiumResult.insertId;
 
@@ -200,6 +207,8 @@ async function getStadiumsByCoachSports(req, res) {
   }
 }
 
+
+// Handles GET /api/stadiums to fetch stadiums owned by the user
 async function getStadiums(req, res) {
   console.log('getStadiums called with user:', req.user);
   const connection = await pool.getConnection();
@@ -218,6 +227,7 @@ async function getStadiums(req, res) {
     `, [req.user.id]);
     console.log('Raw database rows:', rows);
 
+     // Map integer days to string names
     const intToDay = {
       1: 'Monday',
       2: 'Tuesday',
@@ -228,8 +238,10 @@ async function getStadiums(req, res) {
       7: 'Sunday'
     };
 
+     // Group rows by stadium ID
     const stadiums = {};
     rows.forEach(row => {
+      // Initialize stadium entry if not present
       if (!stadiums[row.id]) {
         stadiums[row.id] = {
           id: row.id,
@@ -244,6 +256,8 @@ async function getStadiums(req, res) {
         };
       }
 
+      
+      // Add sport to schedule if not already present
       if (row.sport_name && !stadiums[row.id].schedule.some(sched => sched.sport === row.sport_name)) {
         const schedEntry = {
           sport: row.sport_name,
@@ -256,6 +270,7 @@ async function getStadiums(req, res) {
         stadiums[row.id].schedule.push(schedEntry);
       }
 
+      // Update schedule entry with session details
       if (row.sport_name && row.session_id) {
         const schedEntry = stadiums[row.id].schedule.find(sched => sched.sport === row.sport_name);
         if (schedEntry) {
@@ -267,6 +282,8 @@ async function getStadiums(req, res) {
       }
     });
 
+    
+    // Convert to array and filter incomplete schedules
     const result = Object.values(stadiums).map(stadium => ({
       ...stadium,
       schedule: stadium.schedule.filter(sched => sched.day && sched.fromTime && sched.toTime)
@@ -281,16 +298,18 @@ async function getStadiums(req, res) {
   }
 }
 
+// Handles PUT /api/stadiums to update an existing stadium
 async function updateStadium(req, res) {
   const connection = await pool.getConnection();
   try {
+     // Destructure update data from request body
     const { id, name, address, google_maps_link, facilities, images, schedule } = req.body;
     console.log('Updating stadium with data:', { id, name, address, google_maps_link, facilities, images, schedule });
 
     if (!id || !name || !address || !google_maps_link || !schedule || !Array.isArray(schedule)) {
       return res.status(400).json({ message: 'Missing required fields: id, name, address, google_maps_link, or schedule' });
     }
-
+    // Validate schedule entries
     for (const row of schedule) {
       if (typeof row.sportPercentage !== 'number' || row.sportPercentage < 0 || row.sportPercentage > 100) {
         return res.status(400).json({ message: `Invalid sportPercentage for sport ${row.sport}: must be a number between 0 and 100` });
@@ -302,8 +321,12 @@ async function updateStadium(req, res) {
 
     await connection.beginTransaction();
 
+    
+    // Handle images as comma-separated string
     const imagePaths = Array.isArray(images) ? images.join(',') : images; // Store as comma-separated string
 
+    
+    // Update stadium details
     const sqlUpdate = `
       UPDATE stadiums
       SET name = ?, address = ?, google_maps_link = ?, facilities = ?, images = ?
@@ -323,10 +346,11 @@ async function updateStadium(req, res) {
       await connection.rollback();
       return res.status(404).json({ message: 'Stadium not found or you do not have permission to update it' });
     }
-
+    // Clear existing sessions and sports associations
     await connection.execute('DELETE FROM sessions WHERE stadium_id = ?', [id]);
     await connection.execute('DELETE FROM stadium_sports WHERE stadium_id = ?', [id]);
 
+     // Process new schedule using sportsMap
     const sportsMap = new Map();
     schedule.forEach(row => {
       const sport = row.sport;
@@ -348,6 +372,7 @@ async function updateStadium(req, res) {
     });
     const parsedSports = Array.from(sportsMap.values());
 
+    // Insert updated sports and sessions
     for (const sportEntry of parsedSports) {
       const { sport, sportPercentage, sportCost, schedule } = sportEntry;
       const [sportRows] = await connection.execute('SELECT id FROM sports WHERE name = ?', [sport]);
@@ -363,6 +388,7 @@ async function updateStadium(req, res) {
         [id, sportId, sportPercentage]
       );
 
+      // Insert sessions
       for (const sched of schedule) {
         const { day, fromTime, toTime, maxPlayers } = sched;
         const dayToInt = {
@@ -417,6 +443,7 @@ async function updateStadium(req, res) {
   }
 }
 
+//Handles DELETE /api/stadiums/:id to delete a stadium
 async function deleteStadium(req, res) {
   const connection = await pool.getConnection();
   try {
@@ -437,6 +464,7 @@ async function deleteStadium(req, res) {
   }
 }
 
+// Export controller functions
 module.exports = {
   addStadium,
   getStadiumsByCoachSports,
