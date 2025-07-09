@@ -404,6 +404,71 @@ async function getCoachSalaries(req, res) {
   }
 }
 
+// Submit a complaint as a coach
+async function submitCoachComplaint(req, res) {
+  try {
+    const { type, stadium_id, description } = req.body;
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    let decoded = null;
+    if (token) {
+      try {
+        decoded = jwt.verify(token, process.env.JWT_SECRET);
+      } catch (error) {
+        return res.status(401).json({ success: false, message: 'Invalid token' });
+      }
+    }
+
+    const userId = decoded?.id || req.user?.id;
+    if (!userId || !type || !description?.trim()) {
+      return res.status(400).json({ success: false, message: 'Missing required fields' });
+    }
+
+    // Prepare values for insertion
+    const reported_by = userId; // Coach's user ID
+    const reported_to = type === 'stadium' ? 'stadiumOwner' : 'admin';
+    const stadiumId = type === 'stadium' ? stadium_id : null;
+    const coachId = null; // Always null for coach complaints
+
+    const insertQuery = `
+      INSERT INTO reports 
+        (reported_by, reported_to, stadium_id, coach_id, description, status) 
+      VALUES (?, ?, ?, ?, ?, 'pending')
+    `;
+
+    await executeQuery(insertQuery, [
+      reported_by,
+      reported_to,
+      stadiumId,
+      coachId,
+      description
+    ]);
+
+    return res.status(201).json({ success: true, message: 'Coach complaint submitted successfully' });
+  } catch (error) {
+    console.error('Error submitting coach complaint:', error);
+    return res.status(500).json({ success: false, message: 'Server error submitting complaint' });
+  }
+}
+async function getStadiums(req, res) {
+  try {
+    // Example query: fetch stadiums relevant to coach sessions
+    const stadiums = await executeQuery(`
+      SELECT s.id, s.name, s.address, s.images
+      FROM stadiums s
+      WHERE s.isVerified = 1
+    `);
+
+    res.status(200).json({ success: true, data: stadiums });
+  } catch (error) {
+    console.error('Error fetching stadiums:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch stadiums' });
+  }
+}
+
+
+
 
 // Export the controller functions
 module.exports = {
@@ -411,5 +476,8 @@ module.exports = {
   updateCoachCost,
   bookSession,
   getBookingHistory,
-  getCoachSalaries
+  getCoachSalaries,
+  submitCoachComplaint ,
+  getStadiums
+
 };
