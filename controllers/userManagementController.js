@@ -26,6 +26,7 @@ exports.getAllUsers = async (req, res) => {
       return acc;
     }, {});
 
+    // Return total counts and role counts with full user data
     res.status(200).json({
       success: true,
       data: users,

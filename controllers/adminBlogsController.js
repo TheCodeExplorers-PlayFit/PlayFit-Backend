@@ -1,5 +1,6 @@
 const pool = require('../config/db');
 
+//Get Pending Blogs
 exports.getPendingBlogs = async (req, res) => {
   try {
     console.log('getPendingBlogs: Fetching blogs with verified = 0');
@@ -10,7 +11,7 @@ exports.getPendingBlogs = async (req, res) => {
       WHERE b.verified = 0
       ORDER BY b.created_at DESC
     `;
-    const [blogs] = await pool.query(query);
+    const [blogs] = await pool.query(query);//Returns all pending blogs in JSON.
     console.log('getPendingBlogs: Fetched blogs:', blogs);
     res.json(blogs);
   } catch (err) {
@@ -20,9 +21,9 @@ exports.getPendingBlogs = async (req, res) => {
 };
 
 exports.approveBlog = async (req, res) => {
-  const { id } = req.params;
+  const { id } = req.params; //Fetches id from the URL.
   try {
-    console.log('approveBlog: Approving blog with ID:', id);
+    console.log('approveBlog: Approving blog with ID:', id);//Checks if the blog exists and is not yet verified before updating.
     const [blog] = await pool.query('SELECT id FROM blogs WHERE id = ? AND verified = 0', [id]);
     if (!blog[0]) {
       console.log('approveBlog: Blog not found or already verified');
@@ -38,6 +39,7 @@ exports.approveBlog = async (req, res) => {
   }
 };
 
+//Verifies blog exists before deleting.
 exports.rejectBlog = async (req, res) => {
   const { id } = req.params;
   try {

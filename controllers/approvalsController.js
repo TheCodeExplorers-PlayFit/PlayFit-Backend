@@ -2,8 +2,8 @@ const mysql = require('mysql2/promise');
 
 const pool = mysql.createPool({
   host: 'localhost',
-  user: 'root', // Update with your MySQL username
-  password: '', // Update with your MySQL password
+  user: 'root', 
+  password: '', 
   database: 'sports_app'
 });
 
@@ -14,7 +14,7 @@ exports.getUnverifiedUsers = async (req, res) => {
       FROM users u
       INNER JOIN coach_details cd ON u.id = cd.userId
       WHERE u.role = 'coach' AND cd.verified = 0
-    `).catch(err => {
+    `).catch(err => { 
       throw new Error('Coach query failed: ' + err.message);
     });
 
