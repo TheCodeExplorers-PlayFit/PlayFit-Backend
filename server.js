@@ -4,20 +4,20 @@ const dotenv = require('dotenv');
 const multer = require('multer');
 dotenv.config();
 
-const { sequelize } = require('./config/db'); // Adjusted to match correct export structure
+const { sequelize } = require('./config/db');
 
-// Routes
+// Route Imports
 const userRoutes = require('./routes/userRoutes');
 const userManagementRoutes = require('./routes/userManagementRoutes');
 const sessionRoutes = require('./routes/sessionRoutes');
 const healthOfficerRoutes = require('./routes/healthOfficer.Routes');
 const healthAppointmentRoutes = require('./routes/healthAppointment.routes');
 const injuryRoutes = require('./routes/injury.routes');
-
 const stadiumRoutes = require('./routes/stadiumRoutes');
 const coachSessionRoutes = require('./routes/CoachSessionRoutes');
 const approvalsRoutes = require('./routes/approvalsRoutes');
 const announcementRoutes = require('./routes/announcementRoutes');
+const adminBlogsRoutes = require('./routes/adminBlogsRoutes');
 const transactionRoutes = require('./routes/transactionRoutes');
 const bookingHistoryRoutes = require('./routes/bookingHistoryRoutes');
 const timetableRoutes = require('./routes/timetableRoutes');
@@ -62,11 +62,11 @@ app.use('/api/sessions', sessionRoutes);
 app.use('/api/healthOfficers', healthOfficerRoutes);
 app.use('/api/appointments', healthAppointmentRoutes);
 app.use('/api/injuries', injuryRoutes);
-
 app.use('/api/stadiums', stadiumRoutes);
 app.use('/api/coach-sessions', coachSessionRoutes);
 app.use('/approvals', approvalsRoutes);
 app.use('/api/announcements', announcementRoutes);
+app.use('/api/adminblogs', adminBlogsRoutes);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/booking-history', bookingHistoryRoutes);
 app.use('/api/timetable', timetableRoutes);

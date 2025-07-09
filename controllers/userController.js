@@ -431,6 +431,8 @@ exports.loginUser = async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: '30d' }
     );
+
+    console.log('Generated JWT token (login):', token);
     
     res.status(200).json({
       success: true,
