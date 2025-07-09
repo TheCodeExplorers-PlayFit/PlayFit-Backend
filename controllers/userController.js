@@ -1,7 +1,7 @@
 const { pool } = require('../config/db');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const crypto = require('crypto'); // For generating verification code
+const crypto = require('crypto');
 
 // Helper function to execute SQL with parameters
 async function executeQuery(sql, params = []) {
@@ -19,7 +19,7 @@ function generateVerificationCode() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-// Register user (modified to store verification code)
+// Register user
 exports.registerUser = async (req, res) => {
   try {
     const connection = await pool.getConnection();
@@ -42,6 +42,12 @@ exports.registerUser = async (req, res) => {
       
       if (!firstName || !lastName || !email || !password || !role) {
         throw new Error('Missing required fields: firstName, lastName, email, password, or role');
+      }
+
+      // Check for existing email
+      const existingUsers = await executeQuery('SELECT email FROM users WHERE email = ?', [email]);
+      if (existingUsers.length > 0) {
+        throw new Error('Email already registered');
       }
 
       const salt = await bcrypt.genSalt(10);
@@ -126,7 +132,7 @@ exports.registerUser = async (req, res) => {
       res.status(201).json({
         success: true,
         message: 'User registered, verification code sent',
-        verificationCode, // Send code to frontend (for EmailJS to send email)
+        verificationCode,
         user: {
           id: userId,
           firstName,
@@ -145,11 +151,19 @@ exports.registerUser = async (req, res) => {
     
   } catch (error) {
     console.error('Registration error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to register user',
-      error: error.message
-    });
+    if (error.message === 'Email already registered' || error.code === 'ER_DUP_ENTRY') {
+      res.status(400).json({
+        success: false,
+        message: 'Email already registered',
+        error: error.message
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: 'Failed to register user',
+        error: error.message
+      });
+    }
   }
 };
 
@@ -220,7 +234,160 @@ exports.verifyEmail = async (req, res) => {
   }
 };
 
-// Login user (unchanged, included for completeness)
+// Forgot password
+exports.forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email is required'
+      });
+    }
+
+    const users = await executeQuery('SELECT * FROM users WHERE email = ?', [email]);
+    if (users.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    const user = users[0];
+    if (!user.isVerified) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email not verified'
+      });
+    }
+
+    // Generate reset code and expiration
+    const resetCode = generateVerificationCode();
+    const resetCodeExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes from now
+
+    // Update user with reset code
+    await executeQuery(
+      'UPDATE users SET verificationCode = ?, verificationCodeExpires = ? WHERE email = ?',
+      [resetCode, resetCodeExpires, email]
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Reset code sent to email',
+      resetCode,
+      user: {
+        firstName: user.first_Name,
+        email: user.email
+      }
+    });
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to process forgot password request',
+      error: error.message
+    });
+  }
+};
+
+// Verify reset code
+exports.verifyResetCode = async (req, res) => {
+  try {
+    const { email, resetCode } = req.body;
+
+    if (!email || !resetCode) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email and reset code are required'
+      });
+    }
+
+    const users = await executeQuery(
+      'SELECT verificationCode, verificationCodeExpires FROM users WHERE email = ?',
+      [email]
+    );
+
+    if (users.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    const user = users[0];
+
+    if (user.verificationCode !== resetCode) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid reset code'
+      });
+    }
+
+    if (new Date(user.verificationCodeExpires) < new Date()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Reset code expired'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Reset code verified successfully'
+    });
+  } catch (error) {
+    console.error('Reset code verification error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to verify reset code',
+      error: error.message
+    });
+  }
+};
+
+// Reset password
+exports.resetPassword = async (req, res) => {
+  try {
+    const { email, newPassword } = req.body;
+
+    if (!email || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email and new password are required'
+      });
+    }
+
+    const users = await executeQuery('SELECT * FROM users WHERE email = ?', [email]);
+    if (users.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+    await executeQuery(
+      'UPDATE users SET password = ?, verificationCode = NULL, verificationCodeExpires = NULL WHERE email = ?',
+      [hashedPassword, email]
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Password reset successfully'
+    });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to reset password',
+      error: error.message
+    });
+  }
+};
+
+// Login user
 exports.loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -287,7 +454,7 @@ exports.loginUser = async (req, res) => {
   }
 };
 
-// Get sports (unchanged, included for completeness)
+// Get sports
 exports.getSports = async (req, res) => {
   try {
     const sports = await executeQuery('SELECT id, name FROM sports');
