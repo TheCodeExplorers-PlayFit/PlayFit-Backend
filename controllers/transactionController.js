@@ -30,6 +30,7 @@ exports.getPlayerTransactions = async (req, res) => {
          p.payment_date,
          p.order_id,
          p.transaction_id,
+         p.status,
          pb.booking_date AS session_date,
          s.day_of_week,
          s.start_time,
