@@ -1,4 +1,4 @@
-const pool = require('../config/db');
+const { pool } = require('../config/db');
 
 class PlayerPackageModel {
   static async addPlayerPackage({ name, description, price, duration, sport, stadiumId, start_date, end_date, ownerId }) {

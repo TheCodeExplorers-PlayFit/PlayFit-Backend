@@ -1,4 +1,4 @@
-const pool = require('../config/db');
+const { pool } = require('../config/db');
 
 class StadiumModel {
   async createStadium({ name, address, google_maps_link, facilities, images, ownerId }) {

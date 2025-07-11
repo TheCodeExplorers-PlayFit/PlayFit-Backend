@@ -9,6 +9,8 @@ const {
   deleteStadium
 } = require('../controllers/stadiumController');
 
+router.get('/', protect, restrictTo('stadiumOwner'), getStadiums);
+
 router.get('/by-coach-sports', protect, restrictTo('coach'), getStadiumsByCoachSports);
 router.get('/cloudinary-signature', protect, restrictTo('stadiumOwner'), (req, res) => {
   const timestamp = Math.round(new Date().getTime() / 1000);
