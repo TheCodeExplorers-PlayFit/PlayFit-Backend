@@ -36,20 +36,23 @@ exports.submitComplaint = async (req, res) => {
 
   try {
     let reported_to = 'admin';
-    let queryParams = [player_id, reported_to, description];
+    let stadiumId = null;
+    let coachId = null;
 
     if (type === 'stadium') {
       if (!stadium_id) {
         return res.status(400).json({ error: 'Stadium ID required' });
       }
       reported_to = 'stadiumOwner';
-      queryParams = [player_id, reported_to, stadium_id, null, description];
+      stadiumId = stadium_id;
     } else if (type === 'coach') {
       if (!coach_id) {
         return res.status(400).json({ error: 'Coach ID required' });
       }
-      queryParams = [player_id, reported_to, null, coach_id, description];
+      coachId = coach_id;
     }
+
+    const queryParams = [player_id, reported_to, stadiumId, coachId, description];
 
     const query = `
       INSERT INTO reports (reported_by, reported_to, stadium_id, coach_id, description, status)

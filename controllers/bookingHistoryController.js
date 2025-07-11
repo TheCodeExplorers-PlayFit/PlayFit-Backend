@@ -1,15 +1,31 @@
-const pool = require('../config/db');
+const { pool } = require('../config/db');
 
 // Helper function to execute SQL with parameters
 async function executeQuery(sql, params = []) {
   try {
-    const [results] = await pool.execute(sql, params);
+    const [results] = await pool.query(sql, params);
     return results;
   } catch (error) {
     console.error('Database error:', error);
     throw error;
   }
 }
+
+/*this is execute query function if you want to got more advanced transactions remove first one and use this.
+async function executeQuery(sql, params = []) {
+  let connection;
+  try {
+    connection = await pool.getConnection();
+    const [results] = await connection.execute(sql, params);
+    return results;
+  } catch (error) {
+    console.error('Database error:', error);
+    throw error;
+  } finally {
+    if (connection) connection.release();
+  }
+}
+*/
 
 // Fetch all bookings for a player
 exports.getPlayerBookings = async (req, res) => {
