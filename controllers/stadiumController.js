@@ -1,12 +1,11 @@
-const { pool } = require('../config/db');
+const StadiumModel = require('../models/StadiumModel');
 
 async function addStadium(req, res) {
-  const connection = await pool.getConnection();
+  const connection = await StadiumModel.pool.getConnection();
   try {
     await connection.beginTransaction();
 
     const { name, address, google_maps_link, facilities, images, schedule } = req.body;
-
     console.log('Received stadium data:', { name, address, google_maps_link, facilities, images, schedule });
 
     if (!name || !address || !google_maps_link || !schedule) {
@@ -26,28 +25,19 @@ async function addStadium(req, res) {
       }
     }
 
-    // Validate images (expecting Cloudinary URLs)
     if (!Array.isArray(images) || images.length === 0) {
       return res.status(400).json({ message: 'At least one image URL is required' });
     }
-    const imagePaths = images.join(','); // Store as comma-separated string
 
     const ownerId = req.user.id;
-
-    const sqlStadium = `
-      INSERT INTO stadiums (name, address, google_maps_link, facilities, images, owner_id, isVerified)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `;
-    const [stadiumResult] = await connection.execute(sqlStadium, [
+    const stadiumId = await StadiumModel.createStadium({
       name,
       address,
       google_maps_link,
-      facilities || null,
-      imagePaths,
-      ownerId,
-      0
-    ]);
-    const stadiumId = stadiumResult.insertId;
+      facilities,
+      images,
+      ownerId
+    });
 
     const sportsMap = new Map();
     schedule.forEach(row => {
@@ -70,56 +60,35 @@ async function addStadium(req, res) {
     });
     const parsedSports = Array.from(sportsMap.values());
 
+    const dayToInt = {
+      'Monday': 1,
+      'Tuesday': 2,
+      'Wednesday': 3,
+      'Thursday': 4,
+      'Friday': 5,
+      'Saturday': 6,
+      'Sunday': 7
+    };
+
     for (const sportEntry of parsedSports) {
       const { sport, sportPercentage, sportCost, schedule } = sportEntry;
-      const [sportRows] = await connection.execute('SELECT id FROM sports WHERE name = ?', [sport]);
-      if (sportRows.length === 0) {
+      const sportId = await StadiumModel.getSportId(sport);
+      if (!sportId) {
         console.warn(`Sport ${sport} not found. Skipping.`);
         continue;
       }
-      const sportId = sportRows[0].id;
 
-      await connection.execute(
-        'INSERT INTO stadium_sports (stadium_id, sport_id, sport_percentage) VALUES (?, ?, ?)',
-        [stadiumId, sportId, sportPercentage]
-      );
+      await StadiumModel.createStadiumSport(stadiumId, sportId, sportPercentage);
 
       for (const sched of schedule) {
         const { day, fromTime, toTime, maxPlayers } = sched;
-        const dayToInt = {
-          'Monday': 1,
-          'Tuesday': 2,
-          'Wednesday': 3,
-          'Thursday': 4,
-          'Friday': 5,
-          'Saturday': 6,
-          'Sunday': 7
-        };
         const dayNum = dayToInt[day];
         if (!dayNum) {
           console.warn(`Invalid day for sport ${sport}: ${day}`);
           continue;
         }
 
-        const sqlSession = `
-          INSERT INTO sessions (stadium_id, sport_id, coach_id, day_of_week, start_time, end_time, max_players, total_cost, stadium_sport_cost, coach_cost, isbooked, recurring, status)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `;
-        await connection.execute(sqlSession, [
-  stadiumId,
-  sportId,
-  req.user.role === 'coach' ? req.user.id : null,
-  dayNum,
-  fromTime,
-  toTime,
-  maxPlayers,
-  0.00,
-  sportCost || sportPercentage,
-  0.00,
-  0,
-  1,
-  'available'
-]);
+        await StadiumModel.createSession(stadiumId, sportId, dayNum, fromTime, toTime, maxPlayers, sportCost);
       }
     }
 
@@ -139,61 +108,12 @@ async function addStadium(req, res) {
 
 async function getStadiumsByCoachSports(req, res) {
   try {
-    const userId = req.user.id;
-
     if (req.user.role !== 'coach') {
       return res.status(403).json({ success: false, message: 'Only coaches can access this resource' });
     }
 
-    const [coachSports] = await pool.execute(
-      `SELECT sport1, sport2, sport3 FROM coach_details WHERE userId = ?`,
-      [userId]
-    );
-
-    if (coachSports.length === 0) {
-      return res.status(404).json({ success: false, message: 'Coach details not found' });
-    }
-
-    const sportsArray = [
-      coachSports[0].sport1,
-      coachSports[0].sport2,
-      coachSports[0].sport3
-    ].filter(sport => sport !== null && sport !== 0);
-
-    if (sportsArray.length === 0) {
-      return res.status(404).json({ success: false, message: 'No valid sports found for this coach' });
-    }
-
-    const placeholders = sportsArray.map(() => '?').join(',');
-    const [stadiums] = await pool.execute(
-      `SELECT DISTINCT s.id, s.name, s.description, s.images, s.address, l.location_name,
-       GROUP_CONCAT(DISTINCT sp.name) as sport_names
-       FROM stadiums s
-       JOIN stadium_sports ss ON s.id = ss.stadium_id
-       JOIN sports sp ON ss.sport_id = sp.id
-       LEFT JOIN locations l ON s.location_id = l.location_id
-       WHERE ss.sport_id IN (${placeholders})
-       GROUP BY s.id`,
-      [...sportsArray]
-    );
-
-    const processedStadiums = stadiums.map(stadium => {
-      let images = [];
-      try {
-        images = stadium.images ? stadium.images.split(',') : [];
-      } catch (e) {
-        console.warn(`Error parsing images for stadium ${stadium.id}:`, e);
-      }
-
-      return {
-        ...stadium,
-        images: images,
-        description: stadium.description || null,
-        sport_names: stadium.sport_names ? stadium.sport_names.split(',') : []
-      };
-    });
-
-    res.status(200).json({ success: true, data: processedStadiums });
+    const stadiums = await StadiumModel.getStadiumsByCoachSports(req.user.id);
+    res.status(200).json({ success: true, data: stadiums });
   } catch (error) {
     console.error('Error in getStadiumsByCoachSports:', error);
     res.status(500).json({ success: false, message: 'Server error', error: error.message });
@@ -201,88 +121,18 @@ async function getStadiumsByCoachSports(req, res) {
 }
 
 async function getStadiums(req, res) {
-  console.log('getStadiums called with user:', req.user);
-  const connection = await pool.getConnection();
   try {
-    const [rows] = await connection.execute(`
-      SELECT 
-        s.id, s.name, s.address, s.google_maps_link, s.facilities, s.description, s.details, s.images,
-        ss.sport_id, sp.name AS sport_name, ss.sport_percentage,
-        se.id AS session_id, se.day_of_week, se.start_time, se.end_time, se.max_players, se.stadium_sport_cost
-      FROM stadiums s
-      LEFT JOIN stadium_sports ss ON s.id = ss.stadium_id
-      LEFT JOIN sports sp ON ss.sport_id = sp.id
-      LEFT JOIN sessions se ON s.id = se.stadium_id AND ss.sport_id = se.sport_id
-      WHERE s.owner_id = ?
-      ORDER BY s.id, ss.sport_id, se.day_of_week
-    `, [req.user.id]);
-    console.log('Raw database rows:', rows);
-
-    const intToDay = {
-      1: 'Monday',
-      2: 'Tuesday',
-      3: 'Wednesday',
-      4: 'Thursday',
-      5: 'Friday',
-      6: 'Saturday',
-      7: 'Sunday'
-    };
-
-    const stadiums = {};
-    rows.forEach(row => {
-      if (!stadiums[row.id]) {
-        stadiums[row.id] = {
-          id: row.id,
-          name: row.name,
-          address: row.address,
-          google_maps_link: row.google_maps_link,
-          facilities: row.facilities || null,
-          description: row.description || null,
-          details: row.details || null,
-          images: row.images ? row.images.split(',') : [],
-          schedule: []
-        };
-      }
-
-      if (row.sport_name && !stadiums[row.id].schedule.some(sched => sched.sport === row.sport_name)) {
-        const schedEntry = {
-          sport: row.sport_name,
-          sportPercentage: row.sport_percentage * 100,
-          maxPlayers: row.max_players || 0,
-          day: '',
-          fromTime: '',
-          toTime: ''
-        };
-        stadiums[row.id].schedule.push(schedEntry);
-      }
-
-      if (row.sport_name && row.session_id) {
-        const schedEntry = stadiums[row.id].schedule.find(sched => sched.sport === row.sport_name);
-        if (schedEntry) {
-          schedEntry.day = intToDay[row.day_of_week] || row.day_of_week.toString();
-          schedEntry.fromTime = row.start_time;
-          schedEntry.toTime = row.end_time;
-          schedEntry.maxPlayers = row.max_players;
-        }
-      }
-    });
-
-    const result = Object.values(stadiums).map(stadium => ({
-      ...stadium,
-      schedule: stadium.schedule.filter(sched => sched.day && sched.fromTime && sched.toTime)
-    }));
-    console.log('Processed stadiums response:', result);
-    res.status(200).json(result);
+    const stadiums = await StadiumModel.getStadiumsByOwner(req.user.id);
+    console.log('Processed stadiums response:', stadiums);
+    res.status(200).json(stadiums);
   } catch (error) {
     console.error('Error fetching stadiums:', error);
     res.status(500).json({ message: 'Error fetching stadiums', error: error.message });
-  } finally {
-    connection.release();
   }
 }
 
 async function updateStadium(req, res) {
-  const connection = await pool.getConnection();
+  const connection = await StadiumModel.pool.getConnection();
   try {
     const { id, name, address, google_maps_link, facilities, images, schedule } = req.body;
     console.log('Updating stadium with data:', { id, name, address, google_maps_link, facilities, images, schedule });
@@ -302,30 +152,21 @@ async function updateStadium(req, res) {
 
     await connection.beginTransaction();
 
-    const imagePaths = Array.isArray(images) ? images.join(',') : images; // Store as comma-separated string
-
-    const sqlUpdate = `
-      UPDATE stadiums
-      SET name = ?, address = ?, google_maps_link = ?, facilities = ?, images = ?
-      WHERE id = ? AND owner_id = ?
-    `;
-    const [updateResult] = await connection.execute(sqlUpdate, [
+    const affectedRows = await StadiumModel.updateStadium(id, req.user.id, {
       name,
       address,
       google_maps_link,
-      facilities || null,
-      imagePaths || '',
-      id,
-      req.user.id
-    ]);
+      facilities,
+      images
+    });
 
-    if (updateResult.affectedRows === 0) {
+    if (affectedRows === 0) {
       await connection.rollback();
       return res.status(404).json({ message: 'Stadium not found or you do not have permission to update it' });
     }
 
-    await connection.execute('DELETE FROM sessions WHERE stadium_id = ?', [id]);
-    await connection.execute('DELETE FROM stadium_sports WHERE stadium_id = ?', [id]);
+    await StadiumModel.deleteSessions(id);
+    await StadiumModel.deleteStadiumSports(id);
 
     const sportsMap = new Map();
     schedule.forEach(row => {
@@ -348,58 +189,35 @@ async function updateStadium(req, res) {
     });
     const parsedSports = Array.from(sportsMap.values());
 
+    const dayToInt = {
+      'Monday': 1,
+      'Tuesday': 2,
+      'Wednesday': 3,
+      'Thursday': 4,
+      'Friday': 5,
+      'Saturday': 6,
+      'Sunday': 7
+    };
+
     for (const sportEntry of parsedSports) {
       const { sport, sportPercentage, sportCost, schedule } = sportEntry;
-      const [sportRows] = await connection.execute('SELECT id FROM sports WHERE name = ?', [sport]);
-      if (sportRows.length === 0) {
+      const sportId = await StadiumModel.getSportId(sport);
+      if (!sportId) {
         console.warn(`Sport ${sport} not found. Skipping.`);
         continue;
       }
-      const sportId = sportRows[0].id;
 
-      console.log('Inserting stadium_sports:', { stadiumId: id, sportId, sportPercentage });
-      await connection.execute(
-        'INSERT INTO stadium_sports (stadium_id, sport_id, sport_percentage) VALUES (?, ?, ?)',
-        [id, sportId, sportPercentage]
-      );
+      await StadiumModel.createStadiumSport(id, sportId, sportPercentage);
 
       for (const sched of schedule) {
         const { day, fromTime, toTime, maxPlayers } = sched;
-        const dayToInt = {
-          'Monday': 1,
-          'Tuesday': 2,
-          'Wednesday': 3,
-          'Thursday': 4,
-          'Friday': 5,
-          'Saturday': 6,
-          'Sunday': 7
-        };
         const dayNum = dayToInt[day];
         if (!dayNum) {
           console.warn(`Invalid day for sport ${sport}: ${day}`);
           continue;
         }
 
-        console.log('Inserting session:', { stadiumId: id, sportId, dayNum, fromTime, toTime, maxPlayers });
-        const sqlSession = `
-          INSERT INTO sessions (stadium_id, sport_id, coach_id, day_of_week, start_time, end_time, max_players, total_cost, stadium_sport_cost, coach_cost, isbooked, recurring, status)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `;
-        await connection.execute(sqlSession, [
-          id,
-          sportId,
-          null,
-          dayNum,
-          fromTime,
-          toTime,
-          maxPlayers,
-          0.00,
-          sportCost || sportPercentage,
-          0.00,
-          0,
-          1,
-          'available'
-        ]);
+        await StadiumModel.createSession(id, sportId, dayNum, fromTime, toTime, maxPlayers, sportCost);
       }
     }
 
@@ -418,14 +236,21 @@ async function updateStadium(req, res) {
 }
 
 async function deleteStadium(req, res) {
-  const connection = await pool.getConnection();
+  const connection = await StadiumModel.pool.getConnection();
   try {
     const { id } = req.params;
     console.log('Deleting stadium with id:', id);
     await connection.beginTransaction();
-    await connection.execute('DELETE FROM sessions WHERE stadium_id = ?', [id]);
-    await connection.execute('DELETE FROM stadium_sports WHERE stadium_id = ?', [id]);
-    await connection.execute('DELETE FROM stadiums WHERE id = ? AND owner_id = ?', [id, req.user.id]);
+
+    await StadiumModel.deleteSessions(id);
+    await StadiumModel.deleteStadiumSports(id);
+    const affectedRows = await StadiumModel.deleteStadium(id, req.user.id);
+
+    if (affectedRows === 0) {
+      await connection.rollback();
+      return res.status(404).json({ message: 'Stadium not found or you do not have permission to delete it' });
+    }
+
     await connection.commit();
     res.status(200).json({ message: 'Stadium deleted successfully' });
   } catch (error) {

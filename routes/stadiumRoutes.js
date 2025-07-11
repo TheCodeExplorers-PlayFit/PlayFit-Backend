@@ -12,7 +12,7 @@ const {
 router.get('/by-coach-sports', protect, restrictTo('coach'), getStadiumsByCoachSports);
 router.get('/cloudinary-signature', protect, restrictTo('stadiumOwner'), (req, res) => {
   const timestamp = Math.round(new Date().getTime() / 1000);
-  const signature = // Generate signature using your API Secret (e.g., via crypto)
+  const signature = // Generate signature using your API Secret 
   res.json({ timestamp, signature });
 });
 
