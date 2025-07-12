@@ -19,7 +19,7 @@ class AchievementModel {
   static async getAchievementDetails() {
     try {
       const [rows] = await pool.query(
-        'SELECT u.first_name AS achievementName, s.name AS stadiumName, u.dateEarned, u.role AS userType, u.points, u.status ' +
+        'SELECT u.first_name AS achievementName, s.name AS stadiumName, u.dateEarned, u.role AS userType, u.points, u.status, u.id ' +
         'FROM users u ' +
         'LEFT JOIN stadiums s ON u.id = s.owner_id ' +
         'WHERE u.points > 0 ' +
@@ -41,6 +41,33 @@ class AchievementModel {
         'LIMIT 3'
       );
       return rows;
+    } catch (error) {
+      console.error('Model error:', error);
+      throw error;
+    }
+  }
+
+  static async updateAchievement(id, updates) {
+    try {
+      const { points, status, dateEarned } = updates;
+      const [result] = await pool.query(
+        'UPDATE users SET points = ?, status = ?, dateEarned = ? WHERE id = ?',
+        [points, status, dateEarned, id]
+      );
+      return result.affectedRows > 0;
+    } catch (error) {
+      console.error('Model error:', error);
+      throw error;
+    }
+  }
+
+  static async deleteAchievement(id) {
+    try {
+      const [result] = await pool.query(
+        'DELETE FROM users WHERE id = ?',
+        [id]
+      );
+      return result.affectedRows > 0;
     } catch (error) {
       console.error('Model error:', error);
       throw error;

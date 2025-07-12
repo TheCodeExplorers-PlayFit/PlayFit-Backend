@@ -29,3 +29,34 @@ exports.getTop3Achievers = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+exports.updateAchievement = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { points, status, dateEarned } = req.body;
+    const success = await AchievementModel.updateAchievement(id, { points, status, dateEarned });
+    if (success) {
+      res.status(200).json({ message: 'Achievement updated successfully' });
+    } else {
+      res.status(404).json({ message: 'Achievement not found' });
+    }
+  } catch (error) {
+    console.error('Controller error:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.deleteAchievement = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const success = await AchievementModel.deleteAchievement(id);
+    if (success) {
+      res.status(200).json({ message: 'Achievement deleted successfully' });
+    } else {
+      res.status(404).json({ message: 'Achievement not found' });
+    }
+  } catch (error) {
+    console.error('Controller error:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
