@@ -25,7 +25,7 @@ async function getSessionDetails(req, res) {
     }
 
     const sessions = await executeQuery(`
-      SELECT s.id, s.start_time, s.end_time, DATE(pb.booking_date) as session_date
+      SELECT s.id, s.start_time, s.end_time, s.no_of_players, DATE(pb.booking_date) as session_date
       FROM sessions s
       LEFT JOIN player_bookings pb ON s.id = pb.session_id
       WHERE s.coach_id = ? AND s.isbooked = 1 AND s.status = 'booked'
@@ -44,9 +44,9 @@ async function getSessionDetails(req, res) {
         sessionId: session.id,
         startTime: session.start_time.slice(0, 5),
         endTime: session.end_time.slice(0, 5),
-        date: session.session_date,
-        playerCount: bookings.length,
-        players: bookings.map(b => `${b.first_name} ${b.last_name}`)
+        date: session.session_date ? session.session_date.toISOString().split('T')[0] : '2025-07-12',
+        playerCount: session.no_of_players || 0,
+        players: bookings.length ? bookings.map(b => `${b.first_name} ${b.last_name}`) : ['None']
       };
     }));
 
