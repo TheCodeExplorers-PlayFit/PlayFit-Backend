@@ -1,7 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const achievementsController = require('../controllers/achievementsController');
+const achievementController = require('../controllers/achievementController');
 
-router.get('/', achievementsController.getAchievements);
+router.get('/achievements', achievementController.getAchievements);
+router.get('/achievement-details', achievementController.getAchievementDetails);
+router.get('/top-achievers', achievementController.getTop3Achievers);
 
 module.exports = router;
