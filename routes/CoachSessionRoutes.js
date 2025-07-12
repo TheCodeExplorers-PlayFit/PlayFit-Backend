@@ -11,6 +11,7 @@ router.get('/bookings', protect, CoachSessionController.getBookingHistory);
 router.get('/salaries', protect, CoachSessionController.getCoachSalaries);
 router.post('/submit-complaint', protect, CoachSessionController.submitCoachComplaint);
 router.get('/stadiums', protect, CoachSessionController.getStadiums); // Add this line
+router.get('/details/:coachId', CoachSessionController.getSessionDetails); // Add this line
 
 
 

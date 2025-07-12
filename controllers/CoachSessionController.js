@@ -13,6 +13,66 @@ async function executeQuery(sql, params = []) {
   }
 }
 
+
+async function getSessionDetails(req, res) {
+  try {
+    const coachId = parseInt(req.params.coachId);
+    if (!coachId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Coach ID is required'
+      });
+    }
+
+    const sessions = await executeQuery(`
+      SELECT s.id, s.start_time, s.end_time, DATE(pb.booking_date) as session_date
+      FROM sessions s
+      LEFT JOIN player_bookings pb ON s.id = pb.session_id
+      WHERE s.coach_id = ? AND s.isbooked = 1 AND s.status = 'booked'
+      GROUP BY s.id
+    `, [coachId]);
+
+    const sessionDetails = await Promise.all(sessions.map(async (session) => {
+      const bookings = await executeQuery(`
+        SELECT u.first_name, u.last_name
+        FROM player_bookings pb
+        JOIN users u ON pb.player_id = u.id
+        WHERE pb.session_id = ?
+      `, [session.id]);
+
+      return {
+        sessionId: session.id,
+        startTime: session.start_time.slice(0, 5),
+        endTime: session.end_time.slice(0, 5),
+        date: session.session_date,
+        playerCount: bookings.length,
+        players: bookings.map(b => `${b.first_name} ${b.last_name}`)
+      };
+    }));
+
+    if (sessionDetails.length === 0) {
+      return res.status(200).json({
+        success: true,
+        sessions: [],
+        message: 'No booked sessions found for this coach'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      sessions: sessionDetails
+    });
+  } catch (error) {
+    console.error('Error fetching session details:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch session details',
+      error: error.message
+    });
+  }
+}
+
+
 // Fetch weekly timetable for a stadium
 async function getWeeklyTimetable(req, res) {
   try {
@@ -93,7 +153,6 @@ async function updateCoachCost(req, res) {
         success: false,
         message: 'Session ID and a valid coach cost are required'
       });
-      
     }
 
     const [session] = await executeQuery(
@@ -162,6 +221,7 @@ async function updateCoachCost(req, res) {
   }
 }
 
+// Book a session
 async function bookSession(req, res) {
   try {
     const { sessionId } = req.params;
@@ -229,6 +289,7 @@ async function bookSession(req, res) {
     });
   }
 }
+
 // Fetch booking history for a coach
 async function getBookingHistory(req, res) {
   try {
@@ -451,6 +512,8 @@ async function submitCoachComplaint(req, res) {
     return res.status(500).json({ success: false, message: 'Server error submitting complaint' });
   }
 }
+
+// Fetch stadiums
 async function getStadiums(req, res) {
   try {
     // Example query: fetch stadiums relevant to coach sessions
@@ -467,17 +530,14 @@ async function getStadiums(req, res) {
   }
 }
 
-
-
-
 // Export the controller functions
 module.exports = {
+  getSessionDetails,
   getWeeklyTimetable,
   updateCoachCost,
   bookSession,
   getBookingHistory,
   getCoachSalaries,
-  submitCoachComplaint ,
+  submitCoachComplaint,
   getStadiums
-
 };
