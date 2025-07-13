@@ -3,12 +3,15 @@ const {pool} = require('../config/db');
 class AchievementModel {
   static async getAchievements() {
     try {
-      const [rows] = await pool.query(
-        'SELECT COUNT(*) as totalUnlocked, (SELECT first_name FROM users WHERE points = (SELECT MAX(points) FROM users)) as topAchiever, ' +
-        '(SELECT role FROM users WHERE points = (SELECT MAX(points) FROM users)) as mostActiveModule, ' +
-        '(SELECT status FROM users WHERE points = (SELECT MAX(points) FROM users)) as mostRecent ' +
-        'FROM users'
-      );
+      const [rows] = await pool.query(`
+  SELECT 
+    COUNT(*) as totalUnlocked, 
+    (SELECT first_name FROM users WHERE points = (SELECT MAX(points) FROM users) LIMIT 1) as topAchiever, 
+    (SELECT role FROM users WHERE points = (SELECT MAX(points) FROM users) LIMIT 1) as mostActiveModule, 
+    (SELECT status FROM users WHERE points = (SELECT MAX(points) FROM users) LIMIT 1) as mostRecent 
+  FROM users
+`);
+
       return rows[0] || { totalUnlocked: 0, topAchiever: 'N/A', mostActiveModule: 'N/A', mostRecent: 'N/A' };
     } catch (error) {
       console.error('Model error:', error);
