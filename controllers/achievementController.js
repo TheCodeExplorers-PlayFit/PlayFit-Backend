@@ -2,47 +2,43 @@ const AchievementModel = require('../models/achievementModel');
 
 exports.getAchievements = async (req, res) => {
   try {
-    const achievement = await AchievementModel.getAchievements(req);
-    res.status(200).json(achievement);
+    const data = await AchievementModel.getAchievements(req);
+    res.json(data);
   } catch (error) {
-    console.error('Controller error:', error);
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ error: error.message });
   }
 };
 
 exports.getAchievementDetails = async (req, res) => {
   try {
-    const details = await AchievementModel.getAchievementDetails(req);
-    res.status(200).json(details);
+    const data = await AchievementModel.getAchievementDetails(req);
+    res.json(data);
   } catch (error) {
-    console.error('Controller error:', error);
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ error: error.message });
   }
 };
 
 exports.getTopAchieversByStadium = async (req, res) => {
   try {
-    const topAchievers = await AchievementModel.getTopAchieversByStadium(req);
-    res.status(200).json(topAchievers);
+    const data = await AchievementModel.getTopAchieversByStadium(req);
+    res.json(data);
   } catch (error) {
-    console.error('Controller error:', error);
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ error: error.message });
   }
 };
 
 exports.updateAchievement = async (req, res) => {
   try {
     const { id } = req.params;
-    const { points, status, dateEarned } = req.body;
-    const success = await AchievementModel.updateAchievement(id, { points, status, dateEarned });
+    const { points, dateEarned } = req.body;
+    const success = await AchievementModel.updateAchievement(id, { points, dateEarned });
     if (success) {
-      res.status(200).json({ message: 'Achievement updated successfully' });
+      res.status(200).json({ message: 'Achievement updated' });
     } else {
-      res.status(404).json({ message: 'Achievement not found' });
+      res.status(404).json({ error: 'Achievement not found' });
     }
   } catch (error) {
-    console.error('Controller error:', error);
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ error: error.message });
   }
 };
 
@@ -51,12 +47,11 @@ exports.deleteAchievement = async (req, res) => {
     const { id } = req.params;
     const success = await AchievementModel.deleteAchievement(id);
     if (success) {
-      res.status(200).json({ message: 'Achievement deleted successfully' });
+      res.status(200).json({ message: 'Achievement deleted' });
     } else {
-      res.status(404).json({ message: 'Achievement not found' });
+      res.status(404).json({ error: 'Achievement not found' });
     }
   } catch (error) {
-    console.error('Controller error:', error);
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ error: error.message });
   }
 };

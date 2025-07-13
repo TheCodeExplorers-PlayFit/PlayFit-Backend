@@ -83,28 +83,36 @@ class AchievementModel {
           (@row_number := @row_number + 1) AS unique_id,
           u.id AS user_id,
           u.first_name AS topAchiever,
-          s.name AS stadiumName,
-          COALESCE(pb.booking_date, se.start_time) AS dateEarned,
+          COALESCE(MAX(s.name), 'N/A') AS stadiumName, -- Default to 'N/A' if null
+          MAX(COALESCE(pb.booking_date, se.start_time)) AS dateEarned,
           u.role AS userType,
-          (SELECT COUNT(*) FROM player_bookings pb2 WHERE pb2.player_id = u.id) +
-          (SELECT COUNT(*) FROM sessions se2 WHERE se2.coach_id = u.id) AS sessionsCount,
-          (SELECT COUNT(*) * 10 FROM player_bookings pb2 WHERE pb2.player_id = u.id) +
-          (SELECT COUNT(*) * 10 FROM sessions se2 WHERE se2.coach_id = u.id) AS points
+          SUM(
+            (SELECT COUNT(*) FROM player_bookings pb2 WHERE pb2.player_id = u.id AND pb2.session_id IN (SELECT id FROM sessions WHERE stadium_id = 4)) +
+            (SELECT COUNT(*) FROM sessions se2 WHERE se2.coach_id = u.id AND se2.stadium_id = 4)
+          ) AS sessionsCount,
+          SUM(
+            (SELECT COUNT(*) * 10 FROM player_bookings pb2 WHERE pb2.player_id = u.id AND pb2.session_id IN (SELECT id FROM sessions WHERE stadium_id = 4)) +
+            (SELECT COUNT(*) * 10 FROM sessions se2 WHERE se2.coach_id = u.id AND se2.stadium_id = 4)
+          ) AS points
         FROM users u
         LEFT JOIN player_bookings pb ON u.id = pb.player_id AND u.role = 'player'
         LEFT JOIN sessions se ON u.id = se.coach_id AND u.role = 'coach'
         LEFT JOIN stadiums s ON s.id = COALESCE(pb.session_id, se.stadium_id),
         (SELECT @row_number := 0) AS init
         WHERE u.role IN ('player', 'coach') AND (
-          EXISTS (SELECT 1 FROM player_bookings pb2 WHERE pb2.player_id = u.id) OR
-          EXISTS (SELECT 1 FROM sessions se2 WHERE se2.coach_id = u.id)
-        )
+          EXISTS (SELECT 1 FROM player_bookings pb2 WHERE pb2.player_id = u.id AND pb2.session_id IN (SELECT id FROM sessions WHERE stadium_id = 4)) OR
+          EXISTS (SELECT 1 FROM sessions se2 WHERE se2.coach_id = u.id AND se2.stadium_id = 4)
+        ) AND u.first_name IS NOT NULL -- Filter out invalid users
+        GROUP BY u.id, u.first_name, u.role
+        ORDER BY points DESC
       `;
       if (userRole === 'stadiumOwner' && userId) {
         query += ` AND s.owner_id = ?`;
       }
+      console.log('Executing query:', query);
       const [rows] = await pool.query(query, userRole === 'stadiumOwner' && userId ? [userId] : []);
-      return rows.map((row, index) => ({ ...row, id: row.unique_id })); // Map unique_id to id
+      console.log('Query result:', rows);
+      return rows.map((row, index) => ({ ...row, id: row.unique_id }));
     } catch (error) {
       console.error('Model error:', error);
       throw error;
@@ -114,50 +122,29 @@ class AchievementModel {
   static async getTopAchieversByStadium(req) {
     try {
       const query = `
-        SELECT s.id AS stadium_id, s.name AS stadiumName, u.first_name AS topAchiever,
-               u.role AS userType,
-               (SELECT COUNT(*) * 10 FROM player_bookings pb WHERE pb.player_id = u.id AND pb.session_id IN (SELECT id FROM sessions WHERE stadium_id = s.id)) +
-               (SELECT COUNT(*) * 10 FROM sessions se WHERE se.coach_id = u.id AND se.stadium_id = s.id) AS points
+        SELECT 
+          (@row_number := @row_number + 1) AS unique_id,
+          s.id AS stadium_id,
+          s.name AS stadiumName,
+          u.id AS user_id,
+          u.first_name AS topAchiever,
+          u.role AS userType,
+          (SELECT COUNT(*) * 10 FROM player_bookings pb WHERE pb.player_id = u.id AND pb.session_id IN (SELECT id FROM sessions WHERE stadium_id = s.id)) +
+          (SELECT COUNT(*) * 10 FROM sessions se WHERE se.coach_id = u.id AND se.stadium_id = s.id) AS points
         FROM stadiums s
         JOIN users u ON u.id IN (
           SELECT player_id FROM player_bookings pb WHERE pb.session_id IN (SELECT id FROM sessions WHERE stadium_id = s.id)
           UNION
           SELECT coach_id FROM sessions WHERE stadium_id = s.id
-        )
-        WHERE s.id = 4 -- Adjust based on context or parameterize
-        GROUP BY s.id, s.name, u.first_name, u.role
+        ),
+        (SELECT @row_number := 0) AS init
+        WHERE s.id = 4
+        GROUP BY s.id, s.name, u.id, u.first_name, u.role
         ORDER BY points DESC
-        LIMIT 3; -- Top 3 achievers per stadium
+        LIMIT 3;
       `;
       const [rows] = await pool.query(query);
       return rows || [];
-    } catch (error) {
-      console.error('Model error:', error);
-      throw error;
-    }
-  }
-
-  static async updateAchievement(id, updates) {
-    try {
-      const { points, dateEarned } = updates;
-      const [result] = await pool.query(
-        'UPDATE users SET points = ?, dateEarned = ? WHERE id = ?',
-        [points, dateEarned, id]
-      );
-      return result.affectedRows > 0;
-    } catch (error) {
-      console.error('Model error:', error);
-      throw error;
-    }
-  }
-
-  static async deleteAchievement(id) {
-    try {
-      const [result] = await pool.query(
-        'DELETE FROM users WHERE id = ?',
-        [id]
-      );
-      return result.affectedRows > 0;
     } catch (error) {
       console.error('Model error:', error);
       throw error;
