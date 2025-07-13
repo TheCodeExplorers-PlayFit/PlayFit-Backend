@@ -13,6 +13,66 @@ async function executeQuery(sql, params = []) {
   }
 }
 
+
+async function getSessionDetails(req, res) {
+  try {
+    const coachId = parseInt(req.params.coachId);
+    if (!coachId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Coach ID is required'
+      });
+    }
+
+    const sessions = await executeQuery(`
+      SELECT s.id, s.start_time, s.end_time, s.no_of_players, DATE(pb.booking_date) as session_date
+      FROM sessions s
+      LEFT JOIN player_bookings pb ON s.id = pb.session_id
+      WHERE s.coach_id = ? AND s.isbooked = 1 AND s.status = 'booked'
+      GROUP BY s.id
+    `, [coachId]);
+
+    const sessionDetails = await Promise.all(sessions.map(async (session) => {
+      const bookings = await executeQuery(`
+        SELECT u.first_name, u.last_name
+        FROM player_bookings pb
+        JOIN users u ON pb.player_id = u.id
+        WHERE pb.session_id = ?
+      `, [session.id]);
+
+      return {
+        sessionId: session.id,
+        startTime: session.start_time.slice(0, 5),
+        endTime: session.end_time.slice(0, 5),
+        date: session.session_date ? session.session_date.toISOString().split('T')[0] : '2025-07-12',
+        playerCount: session.no_of_players || 0,
+        players: bookings.length ? bookings.map(b => `${b.first_name} ${b.last_name}`) : ['None']
+      };
+    }));
+
+    if (sessionDetails.length === 0) {
+      return res.status(200).json({
+        success: true,
+        sessions: [],
+        message: 'No booked sessions found for this coach'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      sessions: sessionDetails
+    });
+  } catch (error) {
+    console.error('Error fetching session details:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch session details',
+      error: error.message
+    });
+  }
+}
+
+
 // Fetch weekly timetable for a stadium
 async function getWeeklyTimetable(req, res) {
   try {
@@ -93,7 +153,6 @@ async function updateCoachCost(req, res) {
         success: false,
         message: 'Session ID and a valid coach cost are required'
       });
-      
     }
 
     const [session] = await executeQuery(
@@ -162,6 +221,7 @@ async function updateCoachCost(req, res) {
   }
 }
 
+// Book a session
 async function bookSession(req, res) {
   try {
     const { sessionId } = req.params;
@@ -229,6 +289,7 @@ async function bookSession(req, res) {
     });
   }
 }
+
 // Fetch booking history for a coach
 async function getBookingHistory(req, res) {
   try {
@@ -404,12 +465,107 @@ async function getCoachSalaries(req, res) {
   }
 }
 
+// Submit a complaint as a coach
+async function submitCoachComplaint(req, res) {
+  try {
+    const { type, stadium_id, description } = req.body;
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    let decoded = null;
+    if (token) {
+      try {
+        decoded = jwt.verify(token, process.env.JWT_SECRET);
+      } catch (error) {
+        return res.status(401).json({ success: false, message: 'Invalid token' });
+      }
+    }
+
+    const userId = decoded?.id || req.user?.id;
+    if (!userId || !type || !description?.trim()) {
+      return res.status(400).json({ success: false, message: 'Missing required fields' });
+    }
+
+    // Prepare values for insertion
+    const reported_by = userId; // Coach's user ID
+    const reported_to = type === 'stadium' ? 'stadiumOwner' : 'admin';
+    const stadiumId = type === 'stadium' ? stadium_id : null;
+    const coachId = null; // Always null for coach complaints
+
+    const insertQuery = `
+      INSERT INTO reports 
+        (reported_by, reported_to, stadium_id, coach_id, description, status) 
+      VALUES (?, ?, ?, ?, ?, 'pending')
+    `;
+
+    await executeQuery(insertQuery, [
+      reported_by,
+      reported_to,
+      stadiumId,
+      coachId,
+      description
+    ]);
+
+    return res.status(201).json({ success: true, message: 'Coach complaint submitted successfully' });
+  } catch (error) {
+    console.error('Error submitting coach complaint:', error);
+    return res.status(500).json({ success: false, message: 'Server error submitting complaint' });
+  }
+}
+
+// Fetch stadiums
+async function getStadiums(req, res) {
+  try {
+    // Example query: fetch stadiums relevant to coach sessions
+    const stadiums = await executeQuery(`
+      SELECT s.id, s.name, s.address, s.images
+      FROM stadiums s
+      WHERE s.isVerified = 1
+    `);
+
+    res.status(200).json({ success: true, data: stadiums });
+  } catch (error) {
+    console.error('Error fetching stadiums:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch stadiums' });
+  }
+}
+
+async function submitCoachBlog(req, res) {
+  try {
+    const { title, content } = req.body;
+    const image = req.file ? req.file.filename : null;
+    const userId = req.user?.id;
+
+    if (!title || !content) {
+      return res.status(400).json({ success: false, message: 'Title and Content are required.' });
+    }
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Unauthorized: User not found.' });
+    }
+
+    await executeQuery(
+      "INSERT INTO blogs (title, content, image, user_id, status) VALUES (?, ?, ?, ?, 'pending')",
+      [title, content, image, userId]
+    );
+
+    return res.status(201).json({ success: true, message: 'Blog submitted successfully!' });
+  } catch (error) {
+    console.error('Error submitting blog:', error);
+    return res.status(500).json({ success: false, message: 'Error submitting blog.' });
+  }
+}
+
 
 // Export the controller functions
 module.exports = {
+  getSessionDetails,
   getWeeklyTimetable,
   updateCoachCost,
   bookSession,
   getBookingHistory,
-  getCoachSalaries
+  getCoachSalaries,
+  submitCoachComplaint,
+  getStadiums,
+  submitCoachBlog
+
 };
