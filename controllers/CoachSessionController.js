@@ -530,6 +530,32 @@ async function getStadiums(req, res) {
   }
 }
 
+async function submitCoachBlog(req, res) {
+  try {
+    const { title, content } = req.body;
+    const image = req.file ? req.file.filename : null;
+    const userId = req.user?.id;
+
+    if (!title || !content) {
+      return res.status(400).json({ success: false, message: 'Title and Content are required.' });
+    }
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Unauthorized: User not found.' });
+    }
+
+    await executeQuery(
+      "INSERT INTO blogs (title, content, image, user_id, status) VALUES (?, ?, ?, ?, 'pending')",
+      [title, content, image, userId]
+    );
+
+    return res.status(201).json({ success: true, message: 'Blog submitted successfully!' });
+  } catch (error) {
+    console.error('Error submitting blog:', error);
+    return res.status(500).json({ success: false, message: 'Error submitting blog.' });
+  }
+}
+
+
 // Export the controller functions
 module.exports = {
   getSessionDetails,
@@ -539,5 +565,7 @@ module.exports = {
   getBookingHistory,
   getCoachSalaries,
   submitCoachComplaint,
-  getStadiums
+  getStadiums,
+  submitCoachBlog
+
 };
