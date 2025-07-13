@@ -2,7 +2,7 @@ const AchievementModel = require('../models/achievementModel');
 
 exports.getAchievements = async (req, res) => {
   try {
-    const achievement = await AchievementModel.getAchievements();
+    const achievement = await AchievementModel.getAchievements(req);
     res.status(200).json(achievement);
   } catch (error) {
     console.error('Controller error:', error);
@@ -12,7 +12,7 @@ exports.getAchievements = async (req, res) => {
 
 exports.getAchievementDetails = async (req, res) => {
   try {
-    const details = await AchievementModel.getAchievementDetails();
+    const details = await AchievementModel.getAchievementDetails(req);
     res.status(200).json(details);
   } catch (error) {
     console.error('Controller error:', error);
@@ -20,9 +20,9 @@ exports.getAchievementDetails = async (req, res) => {
   }
 };
 
-exports.getTop3Achievers = async (req, res) => {
+exports.getTopAchieversByStadium = async (req, res) => {
   try {
-    const topAchievers = await AchievementModel.getTop3Achievers();
+    const topAchievers = await AchievementModel.getTopAchieversByStadium(req);
     res.status(200).json(topAchievers);
   } catch (error) {
     console.error('Controller error:', error);
