@@ -532,8 +532,7 @@ async function getStadiums(req, res) {
 
 async function submitCoachBlog(req, res) {
   try {
-    const { title, content } = req.body;
-    const image = req.file ? req.file.filename : null;
+    const { title, content, image } = req.body;  // image is now a URL string or null
     const userId = req.user?.id;
 
     if (!title || !content) {
@@ -545,7 +544,7 @@ async function submitCoachBlog(req, res) {
 
     await executeQuery(
       "INSERT INTO blogs (title, content, image, user_id, status) VALUES (?, ?, ?, ?, 'pending')",
-      [title, content, image, userId]
+      [title, content, image || null, userId]
     );
 
     return res.status(201).json({ success: true, message: 'Blog submitted successfully!' });
@@ -554,6 +553,7 @@ async function submitCoachBlog(req, res) {
     return res.status(500).json({ success: false, message: 'Error submitting blog.' });
   }
 }
+
 
 
 // Export the controller functions
