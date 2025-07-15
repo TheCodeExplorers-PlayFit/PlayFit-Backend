@@ -554,6 +554,70 @@ async function submitCoachBlog(req, res) {
   }
 }
 
+async function getWeeklySalaryOverview(req, res) {
+  try {
+    const coachId = req.user.id;
+
+    const queryResult = await executeQuery(
+      `SELECT
+         CASE day_of_week
+           WHEN 1 THEN 'Monday'
+           WHEN 2 THEN 'Tuesday'
+           WHEN 3 THEN 'Wednesday'
+           WHEN 4 THEN 'Thursday'
+           WHEN 5 THEN 'Friday'
+           WHEN 6 THEN 'Saturday'
+           WHEN 7 THEN 'Sunday'
+         END AS day,
+         SUM(coach_cost * COALESCE(no_of_players, 0)) AS salary
+       FROM sessions
+       WHERE coach_id = ?
+         AND isbooked = 1
+         AND coach_cost IS NOT NULL
+       GROUP BY day_of_week
+       ORDER BY day_of_week`,
+      [coachId]
+    );
+
+    // Fill in missing weekdays with 0 salary
+    const fullWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    const padded = fullWeek.map(day => {
+      const match = queryResult.find(d => d.day === day);
+      return { day, salary: match ? match.salary : 0 };
+    });
+
+    res.status(200).json(padded);
+  } catch (error) {
+    console.error('Weekly salary error:', error);
+    res.status(500).json({ message: 'Failed to fetch salary overview' });
+  }
+}
+
+
+
+// Get Monthly Sessions Overview (for logged-in coach)
+async function getSessionsOverview(req, res) {
+  try {
+    const coachId = req.user.id;
+
+    const results = await executeQuery(`
+      SELECT 
+        MONTHNAME(pb.booking_date) AS month, 
+        COUNT(*) AS sessionsCount
+      FROM player_bookings pb
+      JOIN sessions s ON pb.session_id = s.id
+      WHERE s.coach_id = ?
+      GROUP BY MONTH(pb.booking_date)
+      ORDER BY MONTH(pb.booking_date)
+    `, [coachId]);
+
+    res.status(200).json(results);
+  } catch (error) {
+    console.error('Error fetching sessions overview:', error);
+    res.status(500).json({ message: 'Failed to fetch sessions overview' });
+  }
+}
+
 
 
 // Export the controller functions
@@ -566,6 +630,8 @@ module.exports = {
   getCoachSalaries,
   submitCoachComplaint,
   getStadiums,
-  submitCoachBlog
+  submitCoachBlog,
+  getWeeklySalaryOverview,
+  getSessionsOverview
 
 };
