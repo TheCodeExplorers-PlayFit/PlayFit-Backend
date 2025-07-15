@@ -1,17 +1,11 @@
 // models/HealthTip.js
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/db');
+
 const HealthTip = sequelize.define('HealthTip', {
-  id: {
-    type: DataTypes.INTEGER,
-    primaryKey: true,
-    autoIncrement: true
-  },
-  title: {
-    type: DataTypes.STRING(100),
-    allowNull: false
-  },
-  ategory: {  
+  id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+  title: { type: DataTypes.STRING(100), allowNull: false },
+  category: {
     type: DataTypes.ENUM(
       'Public Health & Safety',
       'Injury Prevention & First Aid',
@@ -24,13 +18,16 @@ const HealthTip = sequelize.define('HealthTip', {
     allowNull: false
   },
   content: {
-    type: DataTypes.TEXT,
-    allowNull: false
-  },
-  created_at: {
-    type: DataTypes.DATE,
-    defaultValue: DataTypes.NOW
-  }
+     type: DataTypes.TEXT,
+      allowNull: false
+     },
+  image_url: { 
+    type: DataTypes.STRING,
+  allowNull: true
+ },
+  createdAt: {
+     type: DataTypes.DATE,
+      defaultValue: DataTypes.NOW }
 }, {
   tableName: 'health_tips',
   timestamps: false

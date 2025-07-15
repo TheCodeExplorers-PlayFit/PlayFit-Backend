@@ -25,6 +25,7 @@ const complaintsRoutes = require('./routes/complaintsRoutes');
 const maintenanceRequestsRoutes = require('./routes/maintenanceRequestsRoutes');
 const playerPackageRoutes = require('./routes/playerPackageRoutes');
 const waitlistRoutes = require('./routes/waitlistRoutes');
+const healthTipRoutes = require('./routes/healthTip.routes');
 
 // Cloudinary Debug (Optional)
 console.log('Cloudinary Config:', {
@@ -74,6 +75,7 @@ app.use('/api/complaints', complaintsRoutes);
 app.use('/api/stadium-owner', maintenanceRequestsRoutes);
 app.use('/api/player-packages', playerPackageRoutes);
 app.use('/api/waitlist', waitlistRoutes);
+app.use('/api/health-tips', healthTipRoutes);
 
 // Root route
 app.get('/', (req, res) => {
