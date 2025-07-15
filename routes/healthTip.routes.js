@@ -25,7 +25,7 @@ const upload = multer({
   }
 });
 
-// ➕ Create health tip (handles both with and without image)
+// ➕ Create health tip
 router.post('/', upload.single('image_url'), healthTipController.createHealthTip);
 
 // 📄 Get all health tips (with optional category filter)
@@ -34,13 +34,12 @@ router.get('/', healthTipController.getHealthTipsByCategory);
 // 🔍 Search health tips
 router.get('/search', healthTipController.searchHealthTips);
 
+// 📄 Get health tips by healthOfficer_id
+router.get('/by-officer/:healthOfficerId', healthTipController.getHealthTipsByOfficerId);
+
+
 // 📄 Get single health tip by ID
 router.get('/:id', healthTipController.getHealthTipById);
 
-// ✏️ Update health tip
-router.put('/:id', upload.single('image_url'), healthTipController.updateHealthTip);
-
-// 🗑️ Delete health tip
-router.delete('/:id', healthTipController.deleteHealthTip);
 
 module.exports = router;

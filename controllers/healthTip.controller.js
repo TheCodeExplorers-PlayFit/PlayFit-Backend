@@ -59,6 +59,25 @@ exports.createHealthTip = async (req, res) => {
   }
 };
 
+// Get Health Tips by Health Officer ID
+exports.getHealthTipsByOfficerId = async (req, res) => {
+  try {
+    const { healthOfficerId } = req.params;
+
+    const tips = await HealthTip.findAll({
+      where: { healthOfficer_id: healthOfficerId },
+      order: [['createdAt', 'DESC']]
+    });
+
+    res.status(200).json({ success: true, data: tips });
+  } catch (err) {
+    console.error('Get health tips by officer failed:', err);
+    res.status(500).json({ success: false, message: 'Failed to fetch health tips' });
+  }
+};
+
+
+
 // Get All Health Tips
 exports.getAllHealthTips = async (req, res) => {
   try {
