@@ -1,5 +1,5 @@
 const mysql = require('mysql2/promise');
-const pool = require('../config/db');
+const { pool } = require('../config/db');
 
 class MaintenanceRequestsModel {
   static async getAllMaintenanceRequests() {

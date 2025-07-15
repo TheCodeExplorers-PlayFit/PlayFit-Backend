@@ -1,7 +1,10 @@
+const { pool } = require('../config/db');
+
 const StadiumModel = require('../models/StadiumModel');
 
 async function addStadium(req, res) {
-  const connection = await StadiumModel.pool.getConnection();
+  const connection = await pool.getConnection();
+
   try {
     await connection.beginTransaction();
 
@@ -132,7 +135,8 @@ async function getStadiums(req, res) {
 }
 
 async function updateStadium(req, res) {
-  const connection = await StadiumModel.pool.getConnection();
+  const connection = await pool.getConnection();
+
   try {
     const { id, name, address, google_maps_link, facilities, images, schedule } = req.body;
     console.log('Updating stadium with data:', { id, name, address, google_maps_link, facilities, images, schedule });
@@ -236,7 +240,8 @@ async function updateStadium(req, res) {
 }
 
 async function deleteStadium(req, res) {
-  const connection = await StadiumModel.pool.getConnection();
+const connection = await pool.getConnection();
+
   try {
     const { id } = req.params;
     console.log('Deleting stadium with id:', id);
