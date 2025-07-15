@@ -23,7 +23,7 @@ const uploadToCloudinary = (buffer) => {
 // Create Health Tip (handles both with and without image)
 exports.createHealthTip = async (req, res) => {
   try {
-    const { title, category, content, image_url } = req.body;
+    const { title, category, content, image_url, healthOfficer_id } = req.body;
 
     if (!title || !category || !content) {
       return res.status(400).json({
@@ -49,6 +49,7 @@ exports.createHealthTip = async (req, res) => {
       category,
       content,
       image_url: finalImageUrl,
+       healthOfficer_id, 
     });
 
     res.status(201).json({ success: true, data: tip });
