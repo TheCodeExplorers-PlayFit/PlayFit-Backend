@@ -39,16 +39,49 @@ exports.searchCoaches = async (req, res) => {
 exports.getRatings = async (req, res) => {
   try {
     const { entityType, entityId } = req.params;
+    const { limit } = req.query;
     if (!['coach', 'stadium'].includes(entityType)) {
       return res.status(400).json({ success: false, message: 'Invalid entity type' });
     }
-    const ratings = await sequelize.query(
-      `SELECT r.id, r.rating, r.comment, r.created_at, u.first_name, u.last_name 
-       FROM ratings r 
-       JOIN users u ON r.user_id = u.id 
-       WHERE r.entity_type = ? AND r.entity_id = ?`,
-      { replacements: [entityType, entityId], type: QueryTypes.SELECT }
-    );
+    let query = `
+      SELECT r.id, r.rating, r.comment, r.created_at, u.first_name, u.last_name
+    `;
+    const replacements = [entityType];
+    
+    if (entityType === 'stadium') {
+      query += `, s.name AS entity_name`;
+    } else {
+      query += `, CONCAT(u2.first_name, ' ', u2.last_name) AS entity_name`;
+    }
+    
+    query += `
+      FROM ratings r 
+      JOIN users u ON r.user_id = u.id
+    `;
+    
+    if (entityType === 'stadium') {
+      query += ` LEFT JOIN stadiums s ON r.entity_id = s.id`;
+    } else {
+      query += ` LEFT JOIN users u2 ON r.entity_id = u2.id`;
+    }
+    
+    query += ` WHERE r.entity_type = ?`;
+    
+    if (entityId !== '0') {
+      query += ' AND r.entity_id = ?';
+      replacements.push(entityId);
+    }
+    
+    query += ' ORDER BY r.created_at DESC';
+    if (limit) {
+      query += ' LIMIT ?';
+      replacements.push(parseInt(limit));
+    }
+    
+    const ratings = await sequelize.query(query, {
+      replacements,
+      type: QueryTypes.SELECT
+    });
     res.status(200).json({ success: true, data: ratings });
   } catch (error) {
     console.error('Error fetching ratings:', error.message);
