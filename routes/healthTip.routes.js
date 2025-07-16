@@ -34,6 +34,13 @@ router.get('/', healthTipController.getHealthTipsByCategory);
 // 🔍 Search health tips
 router.get('/search', healthTipController.searchHealthTips);
 
+// ✏️ Update health tip by ID (with optional new image)
+router.put('/:id', upload.single('image_url'), healthTipController.updateHealthTip);
+
+// 🗑️ Delete health tip by ID
+router.delete('/:id', healthTipController.deleteHealthTip);
+
+
 // 📄 Get health tips by healthOfficer_id
 router.get('/by-officer/:healthOfficerId', healthTipController.getHealthTipsByOfficerId);
 
