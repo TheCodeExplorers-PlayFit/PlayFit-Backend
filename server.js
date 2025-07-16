@@ -28,6 +28,7 @@ const waitlistRoutes = require('./routes/waitlistRoutes');
 const playerAnnouncementsRoutes = require('./routes/playerAnnouncementsRoutes');
 const ratingsRoutes = require('./routes/ratingsRoutes');
 const profileRoutes = require('./routes/profileRoutes');
+const achievementsRoutes = require('./routes/achievementsRoutes');
 
 // Cloudinary Debug (Optional)
 console.log('Cloudinary Config:', {
@@ -80,6 +81,8 @@ app.use('/api/waitlist', waitlistRoutes);
 app.use('/api/player-announcements', playerAnnouncementsRoutes);
 app.use('/api/ratings', ratingsRoutes);
 app.use('/api/profile', profileRoutes);
+app.use('/api/achievements', achievementsRoutes); 
+
 
 // Root route
 app.get('/', (req, res) => {
