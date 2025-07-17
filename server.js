@@ -76,7 +76,7 @@ app.use('/api/stadium-owner', maintenanceRequestsRoutes);
 app.use('/api/player-packages', playerPackageRoutes);
 app.use('/api/waitlist', waitlistRoutes);
 app.use('/api', achievementsRoutes);
-
+app.use('/api/stadium-owner/announcements', require('./routes/stadiumOwnerAnnouncementRoutes'));
 
 // Root route
 app.get('/', (req, res) => {
