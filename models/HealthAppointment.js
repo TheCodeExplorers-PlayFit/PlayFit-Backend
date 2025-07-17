@@ -15,12 +15,8 @@ const HealthAppointment = sequelize.define('HealthAppointment', {
     allowNull: false
   },
   health_officer_id: {
-    type: DataTypes.INTEGER,
-    allowNull: false,
-    references: {
-      model: HealthOfficer,
-      key: 'id'
-    }
+   type: DataTypes.STRING,
+       allowNull: false,
   },
   appointment_date: {
     type: DataTypes.DATEONLY,
@@ -47,8 +43,6 @@ const HealthAppointment = sequelize.define('HealthAppointment', {
   tableName: 'healthappointments'
 });
 
-// Define relationships
-HealthOfficer.hasMany(HealthAppointment, { foreignKey: 'health_officer_id' });
-HealthAppointment.belongsTo(HealthOfficer, { foreignKey: 'health_officer_id' });
+
 
 module.exports = HealthAppointment;

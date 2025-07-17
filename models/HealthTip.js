@@ -2,6 +2,7 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/db');
 const HealthOfficer = require('./healthOfficer');
+const Question = require('./Question');
 
 const HealthTip = sequelize.define('HealthTip', {
   id: { 
@@ -48,3 +49,6 @@ const HealthTip = sequelize.define('HealthTip', {
 });
 
 module.exports = HealthTip;
+HealthTip.hasMany(Question, { foreignKey: 'health_tip_id' });
+Question.belongsTo(HealthTip, { foreignKey: 'health_tip_id' });
+
