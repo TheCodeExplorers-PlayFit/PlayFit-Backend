@@ -5,13 +5,13 @@ exports.getPendingBlogs = async (req, res) => {
   try {
     console.log('getPendingBlogs: Fetching blogs with verified = 0');
     const query = `
-      SELECT b.id, b.user_id, b.title, b.content, b.created_at, u.first_name, u.last_name, u.role
+      SELECT b.id, b.user_id, b.title, b.content, b.created_at, b.image, u.first_name, u.last_name, u.role
       FROM blogs b
       JOIN users u ON b.user_id = u.id
       WHERE b.verified = 0
       ORDER BY b.created_at DESC
     `;
-    const [blogs] = await pool.query(query);//Returns all pending blogs in JSON.
+    const [blogs] = await pool.query(query);
     console.log('getPendingBlogs: Fetched blogs:', blogs);
     res.json(blogs);
   } catch (err) {
@@ -20,10 +20,36 @@ exports.getPendingBlogs = async (req, res) => {
   }
 };
 
-exports.approveBlog = async (req, res) => {
-  const { id } = req.params; //Fetches id from the URL.
+//Get Single Blog by ID
+exports.getBlogById = async (req, res) => {
+  const { id } = req.params;
   try {
-    console.log('approveBlog: Approving blog with ID:', id);//Checks if the blog exists and is not yet verified before updating.
+    console.log('getBlogById: Fetching blog with ID:', id);
+    const query = `
+      SELECT b.id, b.user_id, b.title, b.content, b.created_at, b.image, b.verified, u.first_name, u.last_name, u.role, u.email
+      FROM blogs b
+      JOIN users u ON b.user_id = u.id
+      WHERE b.id = ?
+    `;
+    const [blog] = await pool.query(query, [id]);
+    
+    if (!blog[0]) {
+      console.log('getBlogById: Blog not found');
+      return res.status(404).json({ error: 'Blog not found' });
+    }
+    
+    console.log('getBlogById: Fetched blog:', blog[0]);
+    res.json(blog[0]);
+  } catch (err) {
+    console.error('getBlogById: Error fetching blog:', err.message, err.stack);
+    res.status(500).json({ error: 'Internal server error', details: err.message });
+  }
+};
+
+exports.approveBlog = async (req, res) => {
+  const { id } = req.params;
+  try {
+    console.log('approveBlog: Approving blog with ID:', id);
     const [blog] = await pool.query('SELECT id FROM blogs WHERE id = ? AND verified = 0', [id]);
     if (!blog[0]) {
       console.log('approveBlog: Blog not found or already verified');
@@ -39,7 +65,6 @@ exports.approveBlog = async (req, res) => {
   }
 };
 
-//Verifies blog exists before deleting.
 exports.rejectBlog = async (req, res) => {
   const { id } = req.params;
   try {
