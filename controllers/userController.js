@@ -78,10 +78,11 @@ exports.registerUser = async (req, res) => {
         }
         case 'medicalOfficer': {
           const { documentPath = null, additionalInfo = null } = req.body;
+          const name = `${firstName} ${lastName}`; // Derive name from firstName and lastName
           await connection.execute(
-            `INSERT INTO medical_officer_details (userId, documentPath, additionalInfo) 
-             VALUES (?, ?, ?)`,
-            [userId, documentPath, additionalInfo]
+            `INSERT INTO healthofficers (userId, name, documentPath, additionalInfo) 
+             VALUES (?, ?, ?, ?)`,
+            [userId, name, documentPath, additionalInfo]
           );
           break;
         }
