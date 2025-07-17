@@ -27,6 +27,7 @@ const playerPackageRoutes = require('./routes/playerPackageRoutes');
 const waitlistRoutes = require('./routes/waitlistRoutes');
 const calendarRoutes = require('./routes/calendarRoutes');
 const ratingRoutes = require('./routes/ratingRoutes');
+const adminComplaintsRoutes = require('./routes/adminComplaintsRoutes');
 
 // Cloudinary Debug (Optional)
 console.log('Cloudinary Config:', {
@@ -78,6 +79,7 @@ app.use('/api/player-packages', playerPackageRoutes);
 app.use('/api/waitlist', waitlistRoutes);
 app.use('/api/calendar', calendarRoutes);
 app.use('/api/admin/ratings', ratingRoutes);
+app.use('/api/admin', adminComplaintsRoutes);
 
 
 // Root route
