@@ -49,4 +49,8 @@ router.get('/by-officer/:healthOfficerId', healthTipController.getHealthTipsByOf
 router.get('/:id', healthTipController.getHealthTipById);
 
 
+// Get health tips by category
+//GET /api/health-tips/category/:category
+router.get('/category/:category', healthTipController.getHealthTipsByCategory);
+
 module.exports = router;
