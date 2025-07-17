@@ -617,7 +617,30 @@ async function getSessionsOverview(req, res) {
     res.status(500).json({ message: 'Failed to fetch sessions overview' });
   }
 }
+// Get all notices
+async function getAllNotices(req, res) {
+  try {
+    const [notices] = await pool.query('SELECT * FROM announcements ORDER BY created_at DESC');
+    res.json(notices);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch notices' });
+  }
+}
 
+
+// Get notices for coaches
+async function getCoachNotices(req, res) {
+  try {
+    const [notices] = await pool.query(
+      "SELECT * FROM announcements WHERE category = 'about coaches' ORDER BY created_at DESC"
+    );
+    res.json(notices);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch coach notices' });
+  }
+}
 
 
 // Export the controller functions
@@ -632,6 +655,7 @@ module.exports = {
   getStadiums,
   submitCoachBlog,
   getWeeklySalaryOverview,
-  getSessionsOverview
-
+  getSessionsOverview,
+   getAllNotices,
+  getCoachNotices
 };

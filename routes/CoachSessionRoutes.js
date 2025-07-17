@@ -27,7 +27,8 @@ router.get('/stadiums', protect, CoachSessionController.getStadiums);
 router.get('/details/:coachId', CoachSessionController.getSessionDetails);
 router.get('/weekly-salary-overview', protect, CoachSessionController.getWeeklySalaryOverview);
 router.get('/sessions-overview', protect, CoachSessionController.getSessionsOverview);
-
+router.get('/notices', CoachSessionController. getAllNotices);
+router.get('/notices/coaches', CoachSessionController.getCoachNotices);
 
 //  new route for blog submission with image upload
 router.post('/blogs', protect, upload.single('image'), CoachSessionController.submitCoachBlog);
