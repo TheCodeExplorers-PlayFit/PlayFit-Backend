@@ -2,15 +2,14 @@ const express = require('express');
 const router = express.Router();
 const healthAppointmentController = require('../controllers/healthAppointment.controller');
 
-// GET /api/appointments/:healthOfficerId
-router.get('/:healthOfficerId', healthAppointmentController.getAppointmentsByOfficerId);
+// DEBUG route (add this for testing)
+router.get('/debug/:healthOfficerId', healthAppointmentController.debugAppointmentData);
 
-// POST /api/appointments/update-status
-router.post('/update-status', healthAppointmentController.updateAppointmentStatus);
+// Weekly summary routes - try different approaches
+router.get('/weekly-summary/:healthOfficerId', healthAppointmentController.getWeeklyAppointmentsSummary);
+router.get('/weekly-summary-raw/:healthOfficerId', healthAppointmentController.getWeeklyAppointmentsSummaryRaw);
+router.get('/weekly-summary-simple/:healthOfficerId', healthAppointmentController.getWeeklyAppointmentsSummarySimple);
 
-//get,filter approved appointments
-router.get('/:healthOfficerId/approved', healthAppointmentController.getApprovedAppointments);
- 
 // GET /api/appointments/details/:appointmentId - Get single appointment with user details
 router.get('/details/:appointmentId', healthAppointmentController.getAppointmentById);
 
@@ -20,5 +19,13 @@ router.get('/:healthOfficerId/with-user-details', healthAppointmentController.ge
 // GET /api/appointments/:healthOfficerId/approved-with-details - Get approved appointments with user details
 router.get('/:healthOfficerId/approved-with-details', healthAppointmentController.getApprovedAppointmentsWithUserDetails);
 
+// GET /api/appointments/:healthOfficerId/approved - Get approved appointments
+router.get('/:healthOfficerId/approved', healthAppointmentController.getApprovedAppointments);
+
+// GET /api/appointments/:healthOfficerId - Get all appointments
+router.get('/:healthOfficerId', healthAppointmentController.getAppointmentsByOfficerId);
+
+// POST /api/appointments/update-status
+router.post('/update-status', healthAppointmentController.updateAppointmentStatus);
 
 module.exports = router;
