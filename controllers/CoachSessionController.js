@@ -643,6 +643,83 @@ async function getCoachNotices(req, res) {
 }
 
 
+// Helper to execute queries
+async function executeQuery(sql, params = []) {
+  try {
+    const [results] = await pool.execute(sql, params);
+    return results;
+  } catch (error) {
+    console.error('Database error:', error);
+    throw error;
+  }
+}
+
+// Get recent stadium ratings (limit optional)
+async function getRecentStadiumRatings(req, res) {
+  try {
+    const limit = parseInt(req.query.limit) || 5;
+    const sql = `
+      SELECT r.*, u.first_name, u.last_name, s.name AS stadium_name
+      FROM ratings r
+      JOIN users u ON r.user_id = u.id
+      JOIN stadiums s ON r.entity_id = s.id
+      WHERE r.entity_type = 'stadium'
+      ORDER BY r.created_at DESC
+      LIMIT ?`;
+    const data = await executeQuery(sql, [limit]);
+
+    res.status(200).json({ success: true, data });
+  } catch (error) {
+    console.error('Error fetching stadium ratings:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch stadium ratings' });
+  }
+}
+
+// Search stadiums by name (limit 10)
+async function searchStadiums(req, res) {
+  try {
+    const query = req.query.query || '';
+    if (!query.trim()) {
+      return res.status(400).json({ success: false, message: 'Query parameter is required' });
+    }
+
+    const sql = `SELECT id, name FROM stadiums WHERE name LIKE ? LIMIT 10`;
+    const data = await executeQuery(sql, [`%${query}%`]);
+    res.status(200).json({ success: true, data });
+  } catch (error) {
+    console.error('Error searching stadiums:', error);
+    res.status(500).json({ success: false, message: 'Failed to search stadiums' });
+  }
+}
+
+// Add a new stadium rating
+async function addStadiumRating(req, res) {
+  try {
+    const userId = req.user?.id;
+    const { entity_id, rating, comment } = req.body;
+
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+    if (!entity_id || !rating || rating < 1 || rating > 5) {
+      return res.status(400).json({ success: false, message: 'Invalid rating or entity_id' });
+    }
+
+    const sql = `
+      INSERT INTO ratings (user_id, entity_type, entity_id, rating, comment, created_at)
+      VALUES (?, 'stadium', ?, ?, ?, NOW())`;
+
+    await executeQuery(sql, [userId, entity_id, rating, comment || null]);
+    res.status(201).json({ success: true, message: 'Stadium rating submitted' });
+  } catch (error) {
+    console.error('Error adding stadium rating:', error);
+    res.status(500).json({ success: false, message: 'Failed to add rating' });
+  }
+}
+
+
+
+
 // Export the controller functions
 module.exports = {
   getSessionDetails,
@@ -657,5 +734,8 @@ module.exports = {
   getWeeklySalaryOverview,
   getSessionsOverview,
    getAllNotices,
-  getCoachNotices
+  getCoachNotices,
+  getRecentStadiumRatings,
+  searchStadiums,
+  addStadiumRating
 };
