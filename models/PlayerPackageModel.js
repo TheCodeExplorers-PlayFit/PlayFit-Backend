@@ -40,6 +40,15 @@ class PlayerPackageModel {
     const connection = await pool.getConnection();
     try {
       await connection.beginTransaction();
+      // Check for existing assignment with same player_id and package_id
+      const [existingRows] = await connection.execute(
+        'SELECT id FROM player_package_assignments WHERE player_id = ? AND package_id = ?',
+        [playerId, packageId]
+      );
+      if (existingRows.length > 0) {
+        throw new Error('Player is already assigned to this package');
+      }
+      // Validate package and dates
       const [packageRows] = await connection.execute(
         'SELECT start_date, end_date FROM player_packages WHERE id = ?',
         [packageId]

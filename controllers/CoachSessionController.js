@@ -532,8 +532,7 @@ async function getStadiums(req, res) {
 
 async function submitCoachBlog(req, res) {
   try {
-    const { title, content } = req.body;
-    const image = req.file ? req.file.filename : null;
+    const { title, content, image } = req.body;  // image is now a URL string or null
     const userId = req.user?.id;
 
     if (!title || !content) {
@@ -545,13 +544,101 @@ async function submitCoachBlog(req, res) {
 
     await executeQuery(
       "INSERT INTO blogs (title, content, image, user_id, status) VALUES (?, ?, ?, ?, 'pending')",
-      [title, content, image, userId]
+      [title, content, image || null, userId]
     );
 
     return res.status(201).json({ success: true, message: 'Blog submitted successfully!' });
   } catch (error) {
     console.error('Error submitting blog:', error);
     return res.status(500).json({ success: false, message: 'Error submitting blog.' });
+  }
+}
+
+async function getWeeklySalaryOverview(req, res) {
+  try {
+    const coachId = req.user.id;
+
+    const queryResult = await executeQuery(
+      `SELECT
+         CASE day_of_week
+           WHEN 1 THEN 'Monday'
+           WHEN 2 THEN 'Tuesday'
+           WHEN 3 THEN 'Wednesday'
+           WHEN 4 THEN 'Thursday'
+           WHEN 5 THEN 'Friday'
+           WHEN 6 THEN 'Saturday'
+           WHEN 7 THEN 'Sunday'
+         END AS day,
+         SUM(coach_cost * COALESCE(no_of_players, 0)) AS salary
+       FROM sessions
+       WHERE coach_id = ?
+         AND isbooked = 1
+         AND coach_cost IS NOT NULL
+       GROUP BY day_of_week
+       ORDER BY day_of_week`,
+      [coachId]
+    );
+
+    // Fill in missing weekdays with 0 salary
+    const fullWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    const padded = fullWeek.map(day => {
+      const match = queryResult.find(d => d.day === day);
+      return { day, salary: match ? match.salary : 0 };
+    });
+
+    res.status(200).json(padded);
+  } catch (error) {
+    console.error('Weekly salary error:', error);
+    res.status(500).json({ message: 'Failed to fetch salary overview' });
+  }
+}
+
+
+
+// Get Monthly Sessions Overview (for logged-in coach)
+async function getSessionsOverview(req, res) {
+  try {
+    const coachId = req.user.id;
+
+    const results = await executeQuery(`
+      SELECT 
+        MONTHNAME(pb.booking_date) AS month, 
+        COUNT(*) AS sessionsCount
+      FROM player_bookings pb
+      JOIN sessions s ON pb.session_id = s.id
+      WHERE s.coach_id = ?
+      GROUP BY MONTH(pb.booking_date)
+      ORDER BY MONTH(pb.booking_date)
+    `, [coachId]);
+
+    res.status(200).json(results);
+  } catch (error) {
+    console.error('Error fetching sessions overview:', error);
+    res.status(500).json({ message: 'Failed to fetch sessions overview' });
+  }
+}
+// Get all notices
+async function getAllNotices(req, res) {
+  try {
+    const [notices] = await pool.query('SELECT * FROM announcements ORDER BY created_at DESC');
+    res.json(notices);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch notices' });
+  }
+}
+
+
+// Get notices for coaches
+async function getCoachNotices(req, res) {
+  try {
+    const [notices] = await pool.query(
+      "SELECT * FROM announcements WHERE category = 'about coaches' ORDER BY created_at DESC"
+    );
+    res.json(notices);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch coach notices' });
   }
 }
 
@@ -566,6 +653,9 @@ module.exports = {
   getCoachSalaries,
   submitCoachComplaint,
   getStadiums,
-  submitCoachBlog
-
+  submitCoachBlog,
+  getWeeklySalaryOverview,
+  getSessionsOverview,
+   getAllNotices,
+  getCoachNotices
 };
