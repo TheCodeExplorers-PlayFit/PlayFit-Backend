@@ -25,6 +25,8 @@ const complaintsRoutes = require('./routes/complaintsRoutes');
 const maintenanceRequestsRoutes = require('./routes/maintenanceRequestsRoutes');
 const playerPackageRoutes = require('./routes/playerPackageRoutes');
 const waitlistRoutes = require('./routes/waitlistRoutes');
+const calendarRoutes = require('./routes/calendarRoutes');
+const ratingRoutes = require('./routes/ratingRoutes');
 const blogRoutes = require('./routes/blogRoutes');
 const achievementsRoutes = require('./routes/achievementsRoutes');
 
@@ -76,9 +78,10 @@ app.use('/api/complaints', complaintsRoutes);
 app.use('/api/stadium-owner', maintenanceRequestsRoutes);
 app.use('/api/player-packages', playerPackageRoutes);
 app.use('/api/waitlist', waitlistRoutes);
+app.use('/api/calendar', calendarRoutes);
+app.use('/api/admin/ratings', ratingRoutes);
 app.use('/api/blogs', blogRoutes);
-app.use('/api', achievementsRoutes);
-
+app.use('/api/achievements', achievementsRoutes); 
 
 // Root route
 app.get('/', (req, res) => {

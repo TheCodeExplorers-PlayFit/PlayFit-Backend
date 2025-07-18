@@ -1,4 +1,4 @@
-const pool = require('../config/db');
+const { pool } = require('../config/db');
 
 //Get Pending Blogs
 exports.getPendingBlogs = async (req, res) => {
