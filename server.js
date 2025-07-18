@@ -25,6 +25,7 @@ const complaintsRoutes = require('./routes/complaintsRoutes');
 const maintenanceRequestsRoutes = require('./routes/maintenanceRequestsRoutes');
 const playerPackageRoutes = require('./routes/playerPackageRoutes');
 const waitlistRoutes = require('./routes/waitlistRoutes');
+const blogRoutes = require('./routes/blogRoutes');
 const achievementsRoutes = require('./routes/achievementsRoutes');
 
 // Cloudinary Debug (Optional)
@@ -75,6 +76,7 @@ app.use('/api/complaints', complaintsRoutes);
 app.use('/api/stadium-owner', maintenanceRequestsRoutes);
 app.use('/api/player-packages', playerPackageRoutes);
 app.use('/api/waitlist', waitlistRoutes);
+app.use('/api/blogs', blogRoutes);
 app.use('/api', achievementsRoutes);
 
 
@@ -101,3 +103,5 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
+
+
