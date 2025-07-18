@@ -530,27 +530,25 @@ async function getStadiums(req, res) {
   }
 }
 
-async function submitCoachBlog(req, res) {
+async function getApprovedBlogs(req, res) {
   try {
-    const { title, content, image } = req.body;  // image is now a URL string or null
-    const userId = req.user?.id;
+    // SQL joining blogs with users to get author info
+    const query = `
+      SELECT 
+        b.id, b.title, b.content, b.status, b.created_at, b.image,
+        u.first_name, u.last_name, u.role
+      FROM blogs b
+      JOIN users u ON b.user_id = u.id
+      WHERE b.status = 'approved'
+      ORDER BY b.created_at DESC
+    `;
 
-    if (!title || !content) {
-      return res.status(400).json({ success: false, message: 'Title and Content are required.' });
-    }
-    if (!userId) {
-      return res.status(401).json({ success: false, message: 'Unauthorized: User not found.' });
-    }
+    const blogs = await executeQuery(query);
 
-    await executeQuery(
-      "INSERT INTO blogs (title, content, image, user_id, status) VALUES (?, ?, ?, ?, 'pending')",
-      [title, content, image || null, userId]
-    );
-
-    return res.status(201).json({ success: true, message: 'Blog submitted successfully!' });
+    return res.json(blogs);
   } catch (error) {
-    console.error('Error submitting blog:', error);
-    return res.status(500).json({ success: false, message: 'Error submitting blog.' });
+    console.error('Error fetching blogs:', error);
+    return res.status(500).json({ success: false, message: 'Failed to fetch blogs' });
   }
 }
 
@@ -730,7 +728,7 @@ module.exports = {
   getCoachSalaries,
   submitCoachComplaint,
   getStadiums,
-  submitCoachBlog,
+  getApprovedBlogs,
   getWeeklySalaryOverview,
   getSessionsOverview,
    getAllNotices,
