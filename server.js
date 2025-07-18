@@ -29,6 +29,9 @@ const calendarRoutes = require('./routes/calendarRoutes');
 const ratingRoutes = require('./routes/ratingRoutes');
 const adminComplaintsRoutes = require('./routes/adminComplaintsRoutes');
 
+// ========== NEW: Reports Routes Import ==========
+const reportsRoutes = require('./routes/reportsRoutes');
+
 // Cloudinary Debug (Optional)
 console.log('Cloudinary Config:', {
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -82,6 +85,9 @@ app.use('/api/admin/ratings', ratingRoutes);
 app.use('/api/admin', adminComplaintsRoutes);
 
 
+app.use('/api/admin-reports', require('./routes/reportsRoutes'));
+
+
 // Root route
 app.get('/', (req, res) => {
   res.send('Sports App API is running');
@@ -104,4 +110,15 @@ app.get('/', (req, res) => {
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`📊 Reports API available at: http://localhost:${PORT}/api/reports`);
+  console.log('');
+  console.log('📊 Available Reports Endpoints:');
+  console.log('  GET /api/reports/quick-stats');
+  console.log('  GET /api/reports/stadium-revenue');
+  console.log('  GET /api/reports/injury-analytics');
+  console.log('  GET /api/reports/coach-performance');
+  console.log('  GET /api/reports/health-officer-stats');
+  console.log('  GET /api/reports/blog-stats');
+  console.log('  GET /api/reports/user-engagement');
+  console.log('  GET /api/reports/facility-utilization');
 });
