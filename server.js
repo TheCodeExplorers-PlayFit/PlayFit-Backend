@@ -35,6 +35,7 @@ const achievementsRoutes = require('./routes/achievementsRoutes');
 const playerAppointmentsRoutes = require('./routes/playerAppointmentsRoutes');
 const refundRoutes = require('./routes/refundRoutes');
 const playerWaitlistRoutes = require('./routes/playerWaitlistRoutes');
+const playerSideLeaderboardsPackagesRoutes = require('./routes/playerSideLeaderboardsPackagesRoutes');
 
 // Cloudinary Debug (Optional)
 console.log('Cloudinary Config:', {
@@ -94,6 +95,7 @@ app.use('/api/blogs', blogRoutes);
 app.use('/api/player', playerAppointmentsRoutes);
 app.use('/api/refunded', refundRoutes);
 app.use('/api/waitlist', playerWaitlistRoutes);
+app.use('/api/player-leaderboards', playerSideLeaderboardsPackagesRoutes);
 
 // Root route
 app.get('/', (req, res) => {
