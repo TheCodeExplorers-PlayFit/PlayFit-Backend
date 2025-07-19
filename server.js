@@ -25,7 +25,7 @@ const complaintsRoutes = require('./routes/complaintsRoutes');
 const maintenanceRequestsRoutes = require('./routes/maintenanceRequestsRoutes');
 const playerPackageRoutes = require('./routes/playerPackageRoutes');
 const waitlistRoutes = require('./routes/waitlistRoutes');
-const achievementsRoutes = require('./routes/achievementsRoutes');
+const achievementRoutes = require('./routes/achievementsRoutes');
 const stadiumOwnerAnnouncementRoutes = require('./routes/stadiumOwnerAnnouncementRoutes');
 const revenueRoutes = require('./routes/revenueRoutes');
 // Cloudinary Debug (Optional)
@@ -76,7 +76,7 @@ app.use('/api/complaints', complaintsRoutes);
 app.use('/api/stadium-owner', maintenanceRequestsRoutes);
 app.use('/api/player-packages', playerPackageRoutes);
 app.use('/api/waitlist', waitlistRoutes);
-app.use('/api', achievementsRoutes);
+app.use('/api', achievementRoutes);
 app.use('/api/stadium-owner-announcements', stadiumOwnerAnnouncementRoutes);
 app.use('/api/revenue', revenueRoutes);
 
