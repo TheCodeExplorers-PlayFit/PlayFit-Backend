@@ -33,6 +33,10 @@ const questionRoutes = require('./routes/question.routes');
 const calendarRoutes = require('./routes/calendarRoutes');
 const ratingRoutes = require('./routes/ratingRoutes');
 
+
+const dashboardRoutes = require('./routes/dashboard');
+
+
 const blogRoutes = require('./routes/blogRoutes');
 const achievementsRoutes = require('./routes/achievementsRoutes');
 const playerAppointmentsRoutes = require('./routes/playerAppointmentsRoutes');
@@ -96,7 +100,7 @@ app.use('/api/complaints', complaintsRoutes);
 app.use('/api/stadium-owner', maintenanceRequestsRoutes);
 app.use('/api/player-packages', playerPackageRoutes);
 app.use('/api', waitlistRoutes);
-app.use('/api', achievementRoutes);
+
 app.use('/api/waitlist', waitlistRoutes);
 app.use('/api/player-announcements', playerAnnouncementsRoutes);
 app.use('/api/ratings', ratingsRoutes);
@@ -116,7 +120,7 @@ app.use('/api/player-leaderboards', playerSideLeaderboardsPackagesRoutes);
 app.use('/api/private-sessions', privateSessionRoutes);
 
 app.use('/api/admin', adminComplaintsRoutes);
-
+app.use('/api/public', dashboardRoutes);
 
 app.use('/api/admin-reports', require('./routes/reportsRoutes'));
 
@@ -143,11 +147,6 @@ app.get('/', (req, res) => {
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
-
-
-
-
-
   console.log(`📊 Reports API available at: http://localhost:${PORT}/api/reports`);
   console.log('');
   console.log('📊 Available Reports Endpoints:');
