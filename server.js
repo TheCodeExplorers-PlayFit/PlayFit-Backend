@@ -28,6 +28,7 @@ const waitlistRoutes = require('./routes/waitlistRoutes');
 const calendarRoutes = require('./routes/calendarRoutes');
 const ratingRoutes = require('./routes/ratingRoutes');
 const adminComplaintsRoutes = require('./routes/adminComplaintsRoutes');
+const dashboardRoutes = require('./routes/dashboard');
 
 // ========== NEW: Reports Routes Import ==========
 const reportsRoutes = require('./routes/reportsRoutes');
@@ -83,7 +84,7 @@ app.use('/api/waitlist', waitlistRoutes);
 app.use('/api/calendar', calendarRoutes);
 app.use('/api/admin/ratings', ratingRoutes);
 app.use('/api/admin', adminComplaintsRoutes);
-
+app.use('/api/public', dashboardRoutes);
 
 app.use('/api/admin-reports', require('./routes/reportsRoutes'));
 
