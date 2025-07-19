@@ -1,5 +1,4 @@
 const { pool } = require('../config/db');
-
 const StadiumModel = require('../models/StadiumModel');
 
 async function addStadium(req, res) {
@@ -20,8 +19,9 @@ async function addStadium(req, res) {
     }
 
     for (const row of schedule) {
-      if (typeof row.sportPercentage !== 'number' || row.sportPercentage < 0 || row.sportPercentage > 100) {
-        return res.status(400).json({ message: `Invalid sportPercentage for sport ${row.sport}: must be a number between 0 and 100` });
+      if (typeof row.sportCost !== 'number' || isNaN(row.sportCost) || row.sportCost < 0 || row.sportCost > 1000) {
+        console.log(`Invalid sportCost for sport ${row.sport}:`, row.sportCost);
+        return res.status(400).json({ message: `Invalid sportCost for sport ${row.sport}: must be between 0 and 1000 Rs` });
       }
       if (!row.sport || !row.day || !row.fromTime || !row.toTime || typeof row.maxPlayers !== 'number' || row.maxPlayers <= 0) {
         return res.status(400).json({ message: `Invalid schedule for sport ${row.sport}: missing or invalid fields` });
@@ -46,11 +46,9 @@ async function addStadium(req, res) {
     schedule.forEach(row => {
       const sport = row.sport;
       if (!sportsMap.has(sport)) {
-        const normalizedPercentage = row.sportPercentage / 100;
         sportsMap.set(sport, {
           sport,
-          sportPercentage: normalizedPercentage,
-          sportCost: normalizedPercentage,
+          sportCost: row.sportCost,
           schedule: []
         });
       }
@@ -74,14 +72,14 @@ async function addStadium(req, res) {
     };
 
     for (const sportEntry of parsedSports) {
-      const { sport, sportPercentage, sportCost, schedule } = sportEntry;
+      const { sport, sportCost, schedule } = sportEntry;
       const sportId = await StadiumModel.getSportId(sport);
       if (!sportId) {
         console.warn(`Sport ${sport} not found. Skipping.`);
         continue;
       }
 
-      await StadiumModel.createStadiumSport(stadiumId, sportId, sportPercentage);
+      await StadiumModel.createStadiumSport(stadiumId, sportId, sportCost);
 
       for (const sched of schedule) {
         const { day, fromTime, toTime, maxPlayers } = sched;
@@ -100,9 +98,6 @@ async function addStadium(req, res) {
   } catch (error) {
     await connection.rollback();
     console.error('Error adding stadium:', error);
-    if (error.code === 'ER_CHECK_CONSTRAINT_VIOLATED') {
-      return res.status(400).json({ message: 'Invalid data: sport_percentage must be between 0 and 1' });
-    }
     res.status(500).json({ message: 'Error adding stadium', error: error.message });
   } finally {
     connection.release();
@@ -139,15 +134,16 @@ async function updateStadium(req, res) {
 
   try {
     const { id, name, address, google_maps_link, facilities, images, schedule } = req.body;
-    console.log('Updating stadium with data:', { id, name, address, google_maps_link, facilities, images, schedule });
+    console.log('Received update request body:', JSON.stringify(req.body, null, 2));
 
     if (!id || !name || !address || !google_maps_link || !schedule || !Array.isArray(schedule)) {
       return res.status(400).json({ message: 'Missing required fields: id, name, address, google_maps_link, or schedule' });
     }
 
     for (const row of schedule) {
-      if (typeof row.sportPercentage !== 'number' || row.sportPercentage < 0 || row.sportPercentage > 100) {
-        return res.status(400).json({ message: `Invalid sportPercentage for sport ${row.sport}: must be a number between 0 and 100` });
+      if (typeof row.sportCost !== 'number' || isNaN(row.sportCost) || row.sportCost < 0 || row.sportCost > 1000) {
+        console.log(`Invalid sportCost for sport ${row.sport}:`, row.sportCost);
+        return res.status(400).json({ message: `Invalid sportCost for sport ${row.sport}: must be between 0 and 1000 Rs` });
       }
       if (!row.sport || !row.day || !row.fromTime || !row.toTime || typeof row.maxPlayers !== 'number' || row.maxPlayers <= 0) {
         return res.status(400).json({ message: `Invalid schedule for sport ${row.sport}: missing or invalid fields` });
@@ -176,11 +172,9 @@ async function updateStadium(req, res) {
     schedule.forEach(row => {
       const sport = row.sport;
       if (!sportsMap.has(sport)) {
-        const normalizedPercentage = row.sportPercentage / 100;
         sportsMap.set(sport, {
           sport,
-          sportPercentage: normalizedPercentage,
-          sportCost: normalizedPercentage,
+          sportCost: row.sportCost,
           schedule: []
         });
       }
@@ -204,14 +198,14 @@ async function updateStadium(req, res) {
     };
 
     for (const sportEntry of parsedSports) {
-      const { sport, sportPercentage, sportCost, schedule } = sportEntry;
+      const { sport, sportCost, schedule } = sportEntry;
       const sportId = await StadiumModel.getSportId(sport);
       if (!sportId) {
         console.warn(`Sport ${sport} not found. Skipping.`);
         continue;
       }
 
-      await StadiumModel.createStadiumSport(id, sportId, sportPercentage);
+      await StadiumModel.createStadiumSport(id, sportId, sportCost);
 
       for (const sched of schedule) {
         const { day, fromTime, toTime, maxPlayers } = sched;
@@ -230,9 +224,6 @@ async function updateStadium(req, res) {
   } catch (error) {
     await connection.rollback();
     console.error('Error updating stadium:', error);
-    if (error.code === 'ER_CHECK_CONSTRAINT_VIOLATED') {
-      return res.status(400).json({ message: 'Invalid data: sport_percentage must be between 0 and 1' });
-    }
     res.status(500).json({ message: 'Error updating stadium', error: error.message });
   } finally {
     connection.release();
@@ -240,7 +231,7 @@ async function updateStadium(req, res) {
 }
 
 async function deleteStadium(req, res) {
-const connection = await pool.getConnection();
+  const connection = await pool.getConnection();
 
   try {
     const { id } = req.params;

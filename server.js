@@ -29,7 +29,8 @@ const calendarRoutes = require('./routes/calendarRoutes');
 const ratingRoutes = require('./routes/ratingRoutes');
 const blogRoutes = require('./routes/blogRoutes');
 const achievementsRoutes = require('./routes/achievementsRoutes');
-
+const stadiumOwnerAnnouncementRoutes = require('./routes/stadiumOwnerAnnouncementRoutes');
+const revenueRoutes = require('./routes/revenueRoutes');
 // Cloudinary Debug (Optional)
 console.log('Cloudinary Config:', {
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -78,6 +79,8 @@ app.use('/api/complaints', complaintsRoutes);
 app.use('/api/stadium-owner', maintenanceRequestsRoutes);
 app.use('/api/player-packages', playerPackageRoutes);
 app.use('/api/waitlist', waitlistRoutes);
+app.use('/api/stadium-owner-announcements', stadiumOwnerAnnouncementRoutes);
+app.use('/api/revenue', revenueRoutes);
 app.use('/api/calendar', calendarRoutes);
 app.use('/api/admin/ratings', ratingRoutes);
 app.use('/api/blogs', blogRoutes);
