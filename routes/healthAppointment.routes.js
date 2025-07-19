@@ -5,6 +5,10 @@ const healthAppointmentController = require('../controllers/healthAppointment.co
 // DEBUG route (add this for testing)
 router.get('/debug/:healthOfficerId', healthAppointmentController.debugAppointmentData);
 
+// NEW ROUTES: Today's appointments and stats
+router.get('/today/:healthOfficerId', healthAppointmentController.getTodaysAppointments);
+router.get('/stats/:healthOfficerId', healthAppointmentController.getAppointmentStats);
+
 // Weekly summary routes - try different approaches
 router.get('/weekly-summary/:healthOfficerId', healthAppointmentController.getWeeklyAppointmentsSummary);
 router.get('/weekly-summary-raw/:healthOfficerId', healthAppointmentController.getWeeklyAppointmentsSummaryRaw);

@@ -459,3 +459,118 @@ exports.debugAppointmentData = async (req, res) => {
     });
   }
 };
+
+
+// NEW CONTROLLER: Get today's appointments with user details
+exports.getTodaysAppointments = async (req, res) => {
+  try {
+    const { healthOfficerId } = req.params;
+    console.log('getTodaysAppointments: Fetching today\'s appointments for officer ID:', healthOfficerId);
+    
+    const query = `
+      SELECT 
+        ha.id,
+        ha.appointment_time,
+        ha.reason,
+        ha.status,
+        ha.appointment_date,
+        u.first_name,
+        u.last_name,
+        u.email,
+        u.mobile_number
+      FROM healthappointments ha
+      JOIN users u ON ha.player_id = u.id
+      WHERE ha.health_officer_id = ? 
+        AND DATE(ha.appointment_date) = CURDATE()
+      ORDER BY ha.appointment_time ASC
+    `;
+    
+    const [appointments] = await pool.execute(query, [healthOfficerId]);
+
+    // Transform the data to match frontend interface
+    const transformedAppointments = appointments.map(appointment => ({
+      id: appointment.id.toString(),
+      time: formatTime(appointment.appointment_time),
+      name: `${appointment.first_name} ${appointment.last_name}`,
+      reason: appointment.reason || 'General Consultation',
+      status: capitalizeStatus(appointment.status || 'scheduled'),
+      avatar: generateAvatarUrl(appointment.first_name, appointment.last_name),
+      email: appointment.email,
+      mobile_number: appointment.mobile_number
+    }));
+
+    res.status(200).json({ 
+      success: true, 
+      data: transformedAppointments 
+    });
+  } catch (error) {
+    console.error('getTodaysAppointments: Error fetching today\'s appointments:', error.message, error.stack);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to fetch today\'s appointments'
+    });
+  }
+};
+
+// Helper function to format time from HH:mm:ss to readable format
+function formatTime(timeString) {
+  if (!timeString) return 'N/A';
+  
+  try {
+    const [hours, minutes] = timeString.split(':');
+    const hour12 = parseInt(hours) % 12 || 12;
+    const ampm = parseInt(hours) >= 12 ? 'PM' : 'AM';
+    return `${hour12}:${minutes} ${ampm}`;
+  } catch (error) {
+    return timeString; // Return original if parsing fails
+  }
+}
+
+// Helper function to capitalize status
+function capitalizeStatus(status) {
+  if (!status) return 'Scheduled';
+  return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
+}
+
+// Helper function to generate avatar URL (you can customize this)
+function generateAvatarUrl(firstName, lastName) {
+  // Option 1: Use a service like UI Avatars
+  const initials = `${firstName?.charAt(0) || ''}${lastName?.charAt(0) || ''}`;
+  return `https://ui-avatars.com/api/?name=${encodeURIComponent(initials)}&background=6200EE&color=fff&size=128`;
+  
+  // Option 2: Use local default avatar
+  // return 'assets/images/avatars/default-avatar.jpg';
+}
+
+// NEW CONTROLLER: Get appointments count for dashboard stats
+exports.getAppointmentStats = async (req, res) => {
+  try {
+    const { healthOfficerId } = req.params;
+    console.log('getAppointmentStats: Fetching stats for officer ID:', healthOfficerId);
+    
+    const queries = {
+      total: `SELECT COUNT(*) as count FROM healthappointments WHERE health_officer_id = ?`,
+      today: `SELECT COUNT(*) as count FROM healthappointments WHERE health_officer_id = ? AND DATE(appointment_date) = CURDATE()`,
+      thisWeek: `SELECT COUNT(*) as count FROM healthappointments WHERE health_officer_id = ? AND YEARWEEK(appointment_date, 1) = YEARWEEK(CURDATE(), 1)`,
+      approved: `SELECT COUNT(*) as count FROM healthappointments WHERE health_officer_id = ? AND status = 'approved'`
+    };
+
+    const stats = {};
+    
+    for (const [key, query] of Object.entries(queries)) {
+      const [result] = await pool.execute(query, [healthOfficerId]);
+      stats[key] = result[0].count;
+    }
+
+    res.status(200).json({ 
+      success: true, 
+      data: stats 
+    });
+  } catch (error) {
+    console.error('getAppointmentStats: Error fetching stats:', error.message, error.stack);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to fetch appointment stats'
+    });
+  }
+};
