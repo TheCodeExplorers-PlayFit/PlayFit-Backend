@@ -32,8 +32,13 @@ router.get('/notices/coaches', CoachSessionController.getCoachNotices);
 router.get('/recent', CoachSessionController.getRecentStadiumRatings);
 router.get('/search', CoachSessionController.searchStadiums);
 router.post('/rate', protect, CoachSessionController.addStadiumRating);
+router.get('/achievements', protect, CoachSessionController.getMyAchievements);
+router.get('/achievements/all', protect, CoachSessionController.getAllCoachAchievements);
+router.get('/achievements/top', protect, CoachSessionController.getTopCoaches);
+
 
 //  new route for blog submission with image upload
 router.post('/blogs', protect, upload.single('image'), CoachSessionController.getApprovedBlogs);
+
 
 module.exports = router;
