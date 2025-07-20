@@ -75,7 +75,7 @@ app.use('/api/timetable', timetableRoutes);
 app.use('/api/complaints', complaintsRoutes);
 app.use('/api/stadium-owner', maintenanceRequestsRoutes);
 app.use('/api/player-packages', playerPackageRoutes);
-app.use('/api/waitlist', waitlistRoutes);
+app.use('/api', waitlistRoutes);
 app.use('/api', achievementRoutes);
 app.use('/api/stadium-owner-announcements', stadiumOwnerAnnouncementRoutes);
 app.use('/api/revenue', revenueRoutes);
