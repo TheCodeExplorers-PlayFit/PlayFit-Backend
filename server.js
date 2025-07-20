@@ -27,6 +27,12 @@ const playerPackageRoutes = require('./routes/playerPackageRoutes');
 const waitlistRoutes = require('./routes/waitlistRoutes');
 const healthTipRoutes = require('./routes/healthTip.routes');
 const questionRoutes = require('./routes/question.routes');
+const calendarRoutes = require('./routes/calendarRoutes');
+const ratingRoutes = require('./routes/ratingRoutes');
+const blogRoutes = require('./routes/blogRoutes');
+const achievementsRoutes = require('./routes/achievementsRoutes');
+const stadiumOwnerAnnouncementRoutes = require('./routes/stadiumOwnerAnnouncementRoutes');
+const revenueRoutes = require('./routes/revenueRoutes');
 
 // Cloudinary Debug (Optional)
 console.log('Cloudinary Config:', {
@@ -78,6 +84,12 @@ app.use('/api/player-packages', playerPackageRoutes);
 app.use('/api/waitlist', waitlistRoutes);
 app.use('/api/health-tips', healthTipRoutes);
 app.use('/api/questions', questionRoutes);
+app.use('/api/stadium-owner-announcements', stadiumOwnerAnnouncementRoutes);
+app.use('/api/revenue', revenueRoutes);
+app.use('/api/calendar', calendarRoutes);
+app.use('/api/admin/ratings', ratingRoutes);
+app.use('/api/blogs', blogRoutes);
+app.use('/api/achievements', achievementsRoutes); 
 
 // Root route
 app.get('/', (req, res) => {
@@ -102,3 +114,5 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
+
+
