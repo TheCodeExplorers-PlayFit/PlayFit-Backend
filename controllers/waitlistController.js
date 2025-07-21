@@ -1,5 +1,5 @@
 // controllers/waitlistController.js
-const pool = require('../config/db');
+const {pool} = require('../config/db');
 
 async function addToWaitlist(req, res) {
   const connection = await pool.getConnection();
