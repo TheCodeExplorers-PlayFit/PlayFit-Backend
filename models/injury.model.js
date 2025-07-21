@@ -37,8 +37,8 @@ injury_severity: {
     defaultValue: false,
   },
   health_officer_id: {
-    type: DataTypes.STRING,
-    allowNull: false,
+    type: DataTypes.INTEGER,
+    allowNull: true,
   },
   treatment_plan: {
     type: DataTypes.TEXT,
