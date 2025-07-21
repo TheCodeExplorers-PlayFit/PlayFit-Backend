@@ -28,6 +28,8 @@ const waitlistRoutes = require('./routes/waitlistRoutes');
 const playerAnnouncementsRoutes = require('./routes/playerAnnouncementsRoutes');
 const ratingsRoutes = require('./routes/ratingsRoutes');
 const profileRoutes = require('./routes/profileRoutes');
+const healthTipRoutes = require('./routes/healthTip.routes');
+const questionRoutes = require('./routes/question.routes');
 const calendarRoutes = require('./routes/calendarRoutes');
 const ratingRoutes = require('./routes/ratingRoutes');
 const blogRoutes = require('./routes/blogRoutes');
@@ -37,11 +39,8 @@ const refundRoutes = require('./routes/refundRoutes');
 const playerWaitlistRoutes = require('./routes/playerWaitlistRoutes');
 const playerSideLeaderboardsPackagesRoutes = require('./routes/playerSideLeaderboardsPackagesRoutes');
 const privateSessionRoutes = require('./routes/privateSessionRoutes');
-
-
-
-
-
+const stadiumOwnerAnnouncementRoutes = require('./routes/stadiumOwnerAnnouncementRoutes');
+const revenueRoutes = require('./routes/revenueRoutes');
 
 // Cloudinary Debug (Optional)
 console.log('Cloudinary Config:', {
@@ -95,6 +94,10 @@ app.use('/api/player-announcements', playerAnnouncementsRoutes);
 app.use('/api/ratings', ratingsRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/achievements', achievementsRoutes); 
+app.use('/api/health-tips', healthTipRoutes);
+app.use('/api/questions', questionRoutes);
+app.use('/api/stadium-owner-announcements', stadiumOwnerAnnouncementRoutes);
+app.use('/api/revenue', revenueRoutes);
 app.use('/api/calendar', calendarRoutes);
 app.use('/api/admin/ratings', ratingRoutes);
 app.use('/api/blogs', blogRoutes);

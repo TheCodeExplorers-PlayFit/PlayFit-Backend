@@ -1,4 +1,4 @@
-const {pool} = require('../config/db');
+const { pool } = require('../config/db');
 
 class StadiumModel {
   async createStadium({ name, address, google_maps_link, facilities, images, ownerId }) {
@@ -18,12 +18,12 @@ class StadiumModel {
     return result.insertId;
   }
 
-  async createStadiumSport(stadiumId, sportId, sportPercentage) {
+  async createStadiumSport(stadiumId, sportId, sportCost) {
     const sql = `
-      INSERT INTO stadium_sports (stadium_id, sport_id, sport_percentage)
+      INSERT INTO stadium_sports (stadium_id, sport_id, sport_cost)
       VALUES (?, ?, ?)
     `;
-    await pool.execute(sql, [stadiumId, sportId, sportPercentage]);
+    await pool.execute(sql, [stadiumId, sportId, sportCost]);
   }
 
   async createSession(stadiumId, sportId, dayNum, fromTime, toTime, maxPlayers, sportCost) {
@@ -57,7 +57,7 @@ class StadiumModel {
     const [rows] = await pool.execute(`
       SELECT 
         s.id, s.name, s.address, s.google_maps_link, s.facilities, s.description, s.details, s.images,
-        ss.sport_id, sp.name AS sport_name, ss.sport_percentage,
+        ss.sport_id, sp.name AS sport_name, ss.sport_cost,
         se.id AS session_id, se.day_of_week, se.start_time, se.end_time, se.max_players, se.stadium_sport_cost
       FROM stadiums s
       LEFT JOIN stadium_sports ss ON s.id = ss.stadium_id
@@ -95,7 +95,7 @@ class StadiumModel {
       if (row.sport_name && !stadiums[row.id].schedule.some(sched => sched.sport === row.sport_name)) {
         const schedEntry = {
           sport: row.sport_name,
-          sportPercentage: row.sport_percentage * 100,
+          sportCost: row.sport_cost,
           maxPlayers: row.max_players || 0,
           day: '',
           fromTime: '',
