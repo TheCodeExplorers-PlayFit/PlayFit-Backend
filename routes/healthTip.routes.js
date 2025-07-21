@@ -28,6 +28,10 @@ const upload = multer({
 // ➕ Create health tip
 router.post('/', upload.single('image_url'), healthTipController.createHealthTip);
 
+// Public route to fetch all health tips (for navbar or public view)
+router.get('/public', healthTipController.getAllHealthTips);
+
+
 // 📄 Get all health tips (with optional category filter)
 router.get('/', healthTipController.getHealthTipsByCategory);
 
