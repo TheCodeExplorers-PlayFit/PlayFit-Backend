@@ -35,8 +35,6 @@ exports.createAppointment = async (req, res) => {
   try {
     const { health_officer_id, appointment_date, appointment_time, reason } = req.body;
     const player_id = req.user.id;
-    const player_name = `${req.user.firstName} ${req.user.lastName}`;
-    const player_email = req.user.email;
 
     // Validate health officer exists
     const healthOfficer = await sequelize.query(
@@ -54,10 +52,12 @@ exports.createAppointment = async (req, res) => {
       });
     }
 
-    // Insert appointment
+    // Insert appointment without player_name and player_email (since those columns do not exist in table)
     const [appointment] = await sequelize.query(
-      `INSERT INTO healthappointments (player_id, health_officer_id, appointment_date, appointment_time, reason, player_name, player_email, status, action)
-       VALUES (:player_id, :health_officer_id, :appointment_date, :appointment_time, :reason, :player_name, :player_email, 'pending', NULL)`,
+      `INSERT INTO healthappointments 
+         (player_id, health_officer_id, appointment_date, appointment_time, reason, status, action)
+       VALUES 
+         (:player_id, :health_officer_id, :appointment_date, :appointment_time, :reason, 'pending', NULL)`,
       {
         replacements: {
           player_id,
@@ -65,8 +65,6 @@ exports.createAppointment = async (req, res) => {
           appointment_date,
           appointment_time,
           reason,
-          player_name,
-          player_email,
         },
         type: QueryTypes.INSERT,
       }
@@ -91,12 +89,22 @@ exports.getPlayerAppointments = async (req, res) => {
   try {
     const player_id = req.user.id;
 
+    // Join with users table to get player's name and email
     const appointments = await sequelize.query(
-      `SELECT ha.id, ha.appointment_date, ha.appointment_time, ha.reason, ha.status, ha.player_name, ha.player_email, ho.name AS health_officer_name
-       FROM healthappointments ha
-       JOIN healthofficers ho ON ha.health_officer_id = ho.id
-       WHERE ha.player_id = :player_id
-       ORDER BY ha.appointment_date DESC, ha.appointment_time DESC`,
+      `SELECT 
+        ha.id, 
+        ha.appointment_date, 
+        ha.appointment_time, 
+        ha.reason, 
+        ha.status,
+        CONCAT(u.first_name, ' ', u.last_name) AS player_name,  -- combine first and last names
+        u.email AS player_email,
+        ho.name AS health_officer_name
+        FROM healthappointments ha
+        JOIN healthofficers ho ON ha.health_officer_id = ho.id
+        JOIN users u ON ha.player_id = u.id
+        WHERE ha.player_id = 18
+        ORDER BY ha.appointment_date DESC, ha.appointment_time DESC;`,
       {
         replacements: { player_id },
         type: QueryTypes.SELECT,

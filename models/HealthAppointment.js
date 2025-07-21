@@ -15,7 +15,7 @@ const HealthAppointment = sequelize.define('HealthAppointment', {
     allowNull: false
   },
   health_officer_id: {
-   type: DataTypes.STRING,
+   type: DataTypes.INTEGER,
        allowNull: false,
   },
   appointment_date: {
