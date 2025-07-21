@@ -5,7 +5,7 @@ class MaintenanceRequestsModel {
 static async getMaintenanceRequestsByOwner(ownerId) {
     const query = `
       SELECT 
-        r.id AS request_id,
+        r.id AS id,
         r.reported_by,
         CONCAT(u.first_name, ' ', u.last_name) AS reported_by_name,
         r.reported_to,
@@ -30,26 +30,16 @@ static async getMaintenanceRequestsByOwner(ownerId) {
 
 
   static async updateMaintenanceRequest(id, status) {
-    if (!id || !status) {
-      throw new Error('Missing required fields');
+    const [result] = await pool.query(
+      'UPDATE reports SET status = ? WHERE id = ?',
+      [status, id]
+    );
+    if (result.affectedRows === 0) {
+      throw new Error(`Maintenance request with ID ${id} not found`);
     }
-    if (!['pending', 'resolved', 'in_progress'].includes(status)) {
-      throw new Error('Invalid status value');
-    }
-    try {
-      const [result] = await pool.query(
-        'UPDATE reports SET status = ? WHERE id = ? AND reported_to = ?',
-        [status, id, 'stadiumOwner']
-      );
-      if (result.affectedRows === 0) {
-        throw new Error('Maintenance request not found or unauthorized');
-      }
-      return { message: 'Status updated successfully' };
-    } catch (error) {
-      console.error('Error updating maintenance request status:', error);
-      throw new Error('Failed to update maintenance request status');
-    }
+    return { id, status };
   }
 }
+
 
 module.exports = MaintenanceRequestsModel;
