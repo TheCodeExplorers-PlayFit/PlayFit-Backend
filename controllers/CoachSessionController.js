@@ -793,6 +793,26 @@ const getTopCoaches = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+// New function for blog submission
+const submitBlog = async (req, res) => {
+  try {
+    const { title, content } = req.body;
+    const image = req.file ? req.file.path : null;
+    const coachId = req.user.id; // Assuming protect middleware adds user to req
+
+    const [result] = await pool.query(
+      `INSERT INTO blogs (title, content, image, coach_id, created_at)
+       VALUES (?, ?, ?, ?, NOW())`,
+      [title, content, image, coachId]
+    );
+
+    res.status(201).json({ id: result.insertId, message: 'Blog submitted successfully' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
 // Export the controller functions
 module.exports = {
   getSessionDetails,

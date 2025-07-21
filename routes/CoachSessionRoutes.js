@@ -37,6 +37,7 @@ router.get('/achievements/all', protect, CoachSessionController.getAllCoachAchie
 router.get('/achievements/top', protect, CoachSessionController.getTopCoaches);
 
 
+
 //  new route for blog submission with image upload
 router.post('/blogs', protect, upload.single('image'), CoachSessionController.getApprovedBlogs);
 
