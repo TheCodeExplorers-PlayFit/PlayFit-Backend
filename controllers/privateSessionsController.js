@@ -64,25 +64,28 @@ class PrivateSessionsController {
 
   // Get available private sessions for players (not booked)
   async getAvailablePrivateSessions(req, res) {
-    try {
-      const sessions = await sequelize.query(
-        `SELECT ps.id, ps.coach_id, u.first_name as coach_first_name, u.last_name as coach_last_name, 
-                ps.stadium_id, s.name as stadium_name, ps.sport_id, sp.name as sport_name, 
-                ps.start_time, ps.end_time, ps.date, ps.cost, ps.status
-         FROM private_sessions ps
-         JOIN users u ON ps.coach_id = u.id
-         JOIN stadiums s ON ps.stadium_id = s.id
-         JOIN sports sp ON ps.sport_id = sp.id
-         WHERE ps.status != 'booked'`,
-        { type: QueryTypes.SELECT }
-      );
+  try {
+    const player_id = req.user.id;
 
-      res.status(200).json({ success: true, sessions });
-    } catch (error) {
-      console.error('Error fetching available private sessions:', error);
-      res.status(500).json({ success: false, message: 'Server error', error: error.message });
-    }
+    const sessions = await sequelize.query(
+      `SELECT ps.id, ps.coach_id, u.first_name as coach_first_name, u.last_name as coach_last_name, 
+              ps.stadium_id, s.name as stadium_name, ps.sport_id, sp.name as sport_name, 
+              ps.start_time, ps.end_time, ps.date, ps.cost, ps.status
+       FROM private_sessions ps
+       JOIN users u ON ps.coach_id = u.id
+       JOIN stadiums s ON ps.stadium_id = s.id
+       JOIN sports sp ON ps.sport_id = sp.id
+       WHERE ps.player_id IS NULL OR ps.player_id = ?`,
+      { replacements: [player_id], type: QueryTypes.SELECT }
+    );
+
+    res.status(200).json({ success: true, sessions });
+  } catch (error) {
+    console.error('Error fetching available private sessions:', error);
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
+}
+
 
   // Request a private session (Player)
   async requestPrivateSession(req, res) {

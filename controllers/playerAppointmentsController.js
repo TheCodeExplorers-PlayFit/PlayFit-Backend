@@ -103,7 +103,7 @@ exports.getPlayerAppointments = async (req, res) => {
         FROM healthappointments ha
         JOIN healthofficers ho ON ha.health_officer_id = ho.id
         JOIN users u ON ha.player_id = u.id
-        WHERE ha.player_id = 18
+        WHERE ha.player_id = :player_id
         ORDER BY ha.appointment_date DESC, ha.appointment_time DESC;`,
       {
         replacements: { player_id },
