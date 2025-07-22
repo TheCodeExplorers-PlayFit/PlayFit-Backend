@@ -1,5 +1,5 @@
 const mysql = require('mysql2/promise');
-const pool = require('../config/db');
+const { pool } = require('../config/db');
 
 // Get all stadiums for complaint form
 exports.getStadiums = async (req, res) => {
@@ -64,5 +64,33 @@ exports.submitComplaint = async (req, res) => {
   } catch (error) {
     console.error('Error submitting complaint:', error);
     res.status(500).json({ error: 'Failed to submit complaint' });
+  }
+};
+
+//get complaints by user id
+// Fetch complaints made by a specific player
+exports.getMyComplaints = async (req, res) => {
+  const { playerId } = req.params;
+  try {
+    const [rows] = await pool.query(
+      `SELECT 
+         id,
+         description,
+         status,
+         created_at,
+         CASE 
+           WHEN stadium_id IS NOT NULL THEN 'stadium'
+           WHEN coach_id IS NOT NULL THEN 'coach'
+           ELSE 'system'
+         END AS type
+       FROM reports 
+       WHERE reported_by = ?
+       ORDER BY created_at DESC`,
+      [playerId]
+    );
+    res.json(rows);
+  } catch (error) {
+    console.error('Error fetching player complaints:', error);
+    res.status(500).json({ error: 'Failed to fetch complaint history' });
   }
 };

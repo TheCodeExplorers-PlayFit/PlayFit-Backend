@@ -3,6 +3,7 @@ const Injury = require('../models/injury.model');
 const cloudinary = require('../config/cloudinary');
 const { Readable } = require('stream');
 
+
 exports.createInjury = async (req, res) => {
   try {
     const injury = await Injury.create(req.body);
@@ -80,5 +81,32 @@ exports.getInjuryById = async (req, res) => {
   } catch (err) {
     console.error('Get injury failed:', err);
     res.status(500).json({ success: false, message: 'Failed to get injury' });
+  }
+};
+ 
+
+exports.getInjuriesByPlayerId = async (req, res) => {
+  const { playerId } = req.params;
+
+  console.log('Fetching injuries for player ID:', playerId); // 🔍 log input
+
+  try {
+    const injuries = await Injury.findAll({
+      where: { player_id: playerId }, // Ensure field is correct
+      order: [['createdAt', 'DESC']],
+    });
+
+    console.log('Injuries fetched:', injuries); // 🔍 log output
+
+    res.status(200).json({
+      success: true,
+      data: injuries,
+    });
+  } catch (error) {
+    console.error('🔥 Error fetching injuries:', error); // log full error
+    res.status(500).json({
+      success: false,
+      message: 'Server error while fetching injuries',
+    });
   }
 };

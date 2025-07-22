@@ -530,27 +530,25 @@ async function getStadiums(req, res) {
   }
 }
 
-async function submitCoachBlog(req, res) {
+async function getApprovedBlogs(req, res) {
   try {
-    const { title, content, image } = req.body;  // image is now a URL string or null
-    const userId = req.user?.id;
+    // SQL joining blogs with users to get author info
+    const query = `
+      SELECT 
+        b.id, b.title, b.content, b.status, b.created_at, b.image,
+        u.first_name, u.last_name, u.role
+      FROM blogs b
+      JOIN users u ON b.user_id = u.id
+      WHERE b.status = 'approved'
+      ORDER BY b.created_at DESC
+    `;
 
-    if (!title || !content) {
-      return res.status(400).json({ success: false, message: 'Title and Content are required.' });
-    }
-    if (!userId) {
-      return res.status(401).json({ success: false, message: 'Unauthorized: User not found.' });
-    }
+    const blogs = await executeQuery(query);
 
-    await executeQuery(
-      "INSERT INTO blogs (title, content, image, user_id, status) VALUES (?, ?, ?, ?, 'pending')",
-      [title, content, image || null, userId]
-    );
-
-    return res.status(201).json({ success: true, message: 'Blog submitted successfully!' });
+    return res.json(blogs);
   } catch (error) {
-    console.error('Error submitting blog:', error);
-    return res.status(500).json({ success: false, message: 'Error submitting blog.' });
+    console.error('Error fetching blogs:', error);
+    return res.status(500).json({ success: false, message: 'Failed to fetch blogs' });
   }
 }
 
@@ -643,6 +641,178 @@ async function getCoachNotices(req, res) {
 }
 
 
+// Helper to execute queries
+async function executeQuery(sql, params = []) {
+  try {
+    const [results] = await pool.execute(sql, params);
+    return results;
+  } catch (error) {
+    console.error('Database error:', error);
+    throw error;
+  }
+}
+
+// Get recent stadium ratings (limit optional)
+async function getRecentStadiumRatings(req, res) {
+  try {
+    const limit = parseInt(req.query.limit) || 5;
+    const sql = `
+      SELECT r.*, u.first_name, u.last_name, s.name AS stadium_name
+      FROM ratings r
+      JOIN users u ON r.user_id = u.id
+      JOIN stadiums s ON r.entity_id = s.id
+      WHERE r.entity_type = 'stadium'
+      ORDER BY r.created_at DESC
+      LIMIT ?`;
+    const data = await executeQuery(sql, [limit]);
+
+    res.status(200).json({ success: true, data });
+  } catch (error) {
+    console.error('Error fetching stadium ratings:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch stadium ratings' });
+  }
+}
+
+// Search stadiums by name (limit 10)
+async function searchStadiums(req, res) {
+  try {
+    const query = req.query.query || '';
+    if (!query.trim()) {
+      return res.status(400).json({ success: false, message: 'Query parameter is required' });
+    }
+
+    const sql = `SELECT id, name FROM stadiums WHERE name LIKE ? LIMIT 10`;
+    const data = await executeQuery(sql, [`%${query}%`]);
+    res.status(200).json({ success: true, data });
+  } catch (error) {
+    console.error('Error searching stadiums:', error);
+    res.status(500).json({ success: false, message: 'Failed to search stadiums' });
+  }
+}
+
+// Add a new stadium rating
+async function addStadiumRating(req, res) {
+  try {
+    const userId = req.user?.id;
+    const { entity_id, rating, comment } = req.body;
+
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+    if (!entity_id || !rating || rating < 1 || rating > 5) {
+      return res.status(400).json({ success: false, message: 'Invalid rating or entity_id' });
+    }
+
+    const sql = `
+      INSERT INTO ratings (user_id, entity_type, entity_id, rating, comment, created_at)
+      VALUES (?, 'stadium', ?, ?, ?, NOW())`;
+
+    await executeQuery(sql, [userId, entity_id, rating, comment || null]);
+    res.status(201).json({ success: true, message: 'Stadium rating submitted' });
+  } catch (error) {
+    console.error('Error adding stadium rating:', error);
+    res.status(500).json({ success: false, message: 'Failed to add rating' });
+  }
+}
+// Get logged-in coach's achievements
+const getMyAchievements = async (req, res) => {
+  try {
+    const coachId = req.query.coachId;
+    if (!coachId) {
+      return res.status(400).json({ error: 'Coach ID is required' });
+    }
+
+    const [rows] = await pool.query(
+      `SELECT s.id, s.stadium_id, s.start_time, st.name AS stadium_name
+       FROM sessions s
+       JOIN stadiums st ON s.stadium_id = st.id
+       WHERE s.coach_id = ? AND s.status = 'booked'`,
+      [coachId]
+    );
+
+    // Formula: 10 points per booked session
+    const achievements = rows.map(row => ({
+      id: row.id,
+      coach_id: parseInt(coachId),
+      stadium_id: row.stadium_id,
+      stadium_name: row.stadium_name,
+      points: 10, // 10 points per booked session
+      dateEarned: row.start_time ? new Date().toISOString().split('T')[0] : '2025-07-20'
+    }));
+
+    res.json(achievements);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Get all coaches' achievements
+const getAllCoachAchievements = async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT s.id, s.coach_id, s.stadium_id, s.start_time, 
+              u.first_name AS coach_name, st.name AS stadium_name
+       FROM sessions s
+       JOIN users u ON s.coach_id = u.id
+       JOIN stadiums st ON s.stadium_id = st.id
+       WHERE u.role = 'coach' AND s.status = 'booked'`
+    );
+
+    // Formula: 10 points per booked session
+    const achievements = rows.map(row => ({
+      id: row.id,
+      coach_id: row.coach_id,
+      coach_name: row.coach_name,
+      stadium_id: row.stadium_id,
+      stadium_name: row.stadium_name,
+      points: 10, // 10 points per booked session
+      dateEarned: row.start_time ? new Date().toISOString().split('T')[0] : '2025-07-20'
+    }));
+
+    res.json(achievements);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Get top 5 coaches by total points
+const getTopCoaches = async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT s.coach_id, u.first_name AS coach_name, COUNT(s.id) * 10 AS total_points
+       FROM sessions s
+       JOIN users u ON s.coach_id = u.id
+       WHERE u.role = 'coach' AND s.status = 'booked'
+       GROUP BY s.coach_id, u.first_name
+       ORDER BY total_points DESC
+       LIMIT 5`
+    );
+
+    res.json(rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// New function for blog submission
+const submitBlog = async (req, res) => {
+  try {
+    const { title, content } = req.body;
+    const image = req.file ? req.file.path : null;
+    const coachId = req.user.id; // Assuming protect middleware adds user to req
+
+    const [result] = await pool.query(
+      `INSERT INTO blogs (title, content, image, coach_id, created_at)
+       VALUES (?, ?, ?, ?, NOW())`,
+      [title, content, image, coachId]
+    );
+
+    res.status(201).json({ id: result.insertId, message: 'Blog submitted successfully' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
 // Export the controller functions
 module.exports = {
   getSessionDetails,
@@ -653,9 +823,15 @@ module.exports = {
   getCoachSalaries,
   submitCoachComplaint,
   getStadiums,
-  submitCoachBlog,
+  getApprovedBlogs,
   getWeeklySalaryOverview,
   getSessionsOverview,
    getAllNotices,
-  getCoachNotices
+  getCoachNotices,
+  getRecentStadiumRatings,
+  searchStadiums,
+  addStadiumRating,
+  getAllCoachAchievements,  
+  getTopCoaches,
+  getMyAchievements
 };

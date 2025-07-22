@@ -35,7 +35,14 @@ router.post('/upload', upload.array('files', 5), injuryController.createInjuryWi
 // Get all injuries
 router.get('/', injuryController.getInjuries);
 
+// Get all injuries by player ID
+router.get('/player/:playerId', injuryController.getInjuriesByPlayerId);
+
 // Get specific injury
 router.get('/:id', injuryController.getInjuryById);
+
+
+
+
 
 module.exports = router;

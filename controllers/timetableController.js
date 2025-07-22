@@ -12,6 +12,7 @@ async function executeQuery(sql, params = []) {
 }
 
 // Fetch future booked sessions for a player
+// Fetch future booked sessions for a player
 exports.getPlayerTimetable = async (req, res) => {
   try {
     const { playerId } = req.params;
@@ -22,10 +23,10 @@ exports.getPlayerTimetable = async (req, res) => {
       });
     }
 
-    // Current date and time (adjustable for testing, set to May 3, 2025, 21:01)
-    const now = new Date('2025-05-03T21:01:00');
-    const currentDate = now.toISOString().split('T')[0]; // e.g., '2025-05-03'
-    const currentTime = now.toTimeString().split(' ')[0]; // e.g., '21:01:00'
+    // Get current date and time dynamically
+    const now = new Date();
+    const currentDate = now.toISOString().split('T')[0]; // e.g., '2025-06-02'
+    const currentTime = now.toTimeString().split(' ')[0]; // e.g., '12:09:00'
 
     const sessions = await executeQuery(
       `SELECT 

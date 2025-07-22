@@ -102,15 +102,12 @@ exports.getWeeklyTimetable = async (req, res) => {
       });
     }
 
-    // Calculate next week's Monday
+    // Use tomorrow's date as start of the week
     const today = new Date();
-    const currentDay = today.getDay();
-    const daysToNextMonday = currentDay === 0 ? 1 : 8 - currentDay;
-    const nextMonday = new Date(today);
-    nextMonday.setDate(today.getDate() + daysToNextMonday);
-    nextMonday.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1); // Move to tomorrow
+    const tomorrowDate = tomorrow.toISOString().split('T')[0]; // e.g., '2025-06-03'
 
-    // Calculate session dates based on day_of_week
     let query = `
       SELECT 
         s.id, 
@@ -121,13 +118,13 @@ exports.getWeeklyTimetable = async (req, res) => {
         CONCAT(u.first_name, ' ', u.last_name) AS coach_name,
         s.day_of_week,
         CASE s.day_of_week
-          WHEN 1 THEN DATE_FORMAT(DATE_ADD(?, INTERVAL 0 DAY), '%Y/%m/%d')
-          WHEN 2 THEN DATE_FORMAT(DATE_ADD(?, INTERVAL 1 DAY), '%Y/%m/%d')
-          WHEN 3 THEN DATE_FORMAT(DATE_ADD(?, INTERVAL 2 DAY), '%Y/%m/%d')
-          WHEN 4 THEN DATE_FORMAT(DATE_ADD(?, INTERVAL 3 DAY), '%Y/%m/%d')
-          WHEN 5 THEN DATE_FORMAT(DATE_ADD(?, INTERVAL 4 DAY), '%Y/%m/%d')
-          WHEN 6 THEN DATE_FORMAT(DATE_ADD(?, INTERVAL 5 DAY), '%Y/%m/%d')
-          WHEN 7 THEN DATE_FORMAT(DATE_ADD(?, INTERVAL 6 DAY), '%Y/%m/%d')
+          WHEN 1 THEN DATE_FORMAT(DATE_ADD(?, INTERVAL ${tomorrow.getDay() === 1 ? 0 : 7 - tomorrow.getDay() + 1} DAY), '%Y/%m/%d')
+          WHEN 2 THEN DATE_FORMAT(DATE_ADD(?, INTERVAL ${tomorrow.getDay() === 2 ? 0 : 7 - tomorrow.getDay() + 2} DAY), '%Y/%m/%d')
+          WHEN 3 THEN DATE_FORMAT(DATE_ADD(?, INTERVAL ${tomorrow.getDay() === 3 ? 0 : 7 - tomorrow.getDay() + 3} DAY), '%Y/%m/%d')
+          WHEN 4 THEN DATE_FORMAT(DATE_ADD(?, INTERVAL ${tomorrow.getDay() === 4 ? 0 : 7 - tomorrow.getDay() + 4} DAY), '%Y/%m/%d')
+          WHEN 5 THEN DATE_FORMAT(DATE_ADD(?, INTERVAL ${tomorrow.getDay() === 5 ? 0 : 7 - tomorrow.getDay() + 5} DAY), '%Y/%m/%d')
+          WHEN 6 THEN DATE_FORMAT(DATE_ADD(?, INTERVAL ${tomorrow.getDay() === 6 ? 0 : 7 - tomorrow.getDay() + 6} DAY), '%Y/%m/%d')
+          WHEN 7 THEN DATE_FORMAT(DATE_ADD(?, INTERVAL ${tomorrow.getDay() === 0 ? 0 : 7 - tomorrow.getDay()} DAY), '%Y/%m/%d')
         END AS session_date,
         CASE s.day_of_week
           WHEN 1 THEN 'Monday'
@@ -150,11 +147,25 @@ exports.getWeeklyTimetable = async (req, res) => {
       WHERE s.stadium_id = ? 
       AND s.status = 'available' 
       AND s.no_of_players < s.max_players
-      AND s.recurring = 1`;
-    
+      AND s.recurring = 1
+      AND s.coach_id IS NOT NULL
+      AND (
+        CASE s.day_of_week
+          WHEN 1 THEN DATE_ADD(?, INTERVAL ${tomorrow.getDay() === 1 ? 0 : 7 - tomorrow.getDay() + 1} DAY)
+          WHEN 2 THEN DATE_ADD(?, INTERVAL ${tomorrow.getDay() === 2 ? 0 : 7 - tomorrow.getDay() + 2} DAY)
+          WHEN 3 THEN DATE_ADD(?, INTERVAL ${tomorrow.getDay() === 3 ? 0 : 7 - tomorrow.getDay() + 3} DAY)
+          WHEN 4 THEN DATE_ADD(?, INTERVAL ${tomorrow.getDay() === 4 ? 0 : 7 - tomorrow.getDay() + 4} DAY)
+          WHEN 5 THEN DATE_ADD(?, INTERVAL ${tomorrow.getDay() === 5 ? 0 : 7 - tomorrow.getDay() + 5} DAY)
+          WHEN 6 THEN DATE_ADD(?, INTERVAL ${tomorrow.getDay() === 6 ? 0 : 7 - tomorrow.getDay() + 6} DAY)
+          WHEN 7 THEN DATE_ADD(?, INTERVAL ${tomorrow.getDay() === 0 ? 0 : 7 - tomorrow.getDay()} DAY)
+        END >= ?
+      )`;
+
     const params = [
-      nextMonday, nextMonday, nextMonday, nextMonday, 
-      nextMonday, nextMonday, nextMonday, stadiumId
+      tomorrowDate, tomorrowDate, tomorrowDate, tomorrowDate, tomorrowDate, tomorrowDate, tomorrowDate,
+      stadiumId,
+      tomorrowDate, tomorrowDate, tomorrowDate, tomorrowDate, tomorrowDate, tomorrowDate, tomorrowDate,
+      tomorrowDate
     ];
 
     if (playerId) {
@@ -164,20 +175,20 @@ exports.getWeeklyTimetable = async (req, res) => {
         WHERE player_id = ? 
         AND booking_date = (
           CASE s.day_of_week
-            WHEN 1 THEN DATE_ADD(?, INTERVAL 0 DAY)
-            WHEN 2 THEN DATE_ADD(?, INTERVAL 1 DAY)
-            WHEN 3 THEN DATE_ADD(?, INTERVAL 2 DAY)
-            WHEN 4 THEN DATE_ADD(?, INTERVAL 3 DAY)
-            WHEN 5 THEN DATE_ADD(?, INTERVAL 4 DAY)
-            WHEN 6 THEN DATE_ADD(?, INTERVAL 5 DAY)
-            WHEN 7 THEN DATE_ADD(?, INTERVAL 6 DAY)
+            WHEN 1 THEN DATE_ADD(?, INTERVAL ${tomorrow.getDay() === 1 ? 0 : 7 - tomorrow.getDay() + 1} DAY)
+            WHEN 2 THEN DATE_ADD(?, INTERVAL ${tomorrow.getDay() === 2 ? 0 : 7 - tomorrow.getDay() + 2} DAY)
+            WHEN 3 THEN DATE_ADD(?, INTERVAL ${tomorrow.getDay() === 3 ? 0 : 7 - tomorrow.getDay() + 3} DAY)
+            WHEN 4 THEN DATE_ADD(?, INTERVAL ${tomorrow.getDay() === 4 ? 0 : 7 - tomorrow.getDay() + 4} DAY)
+            WHEN 5 THEN DATE_ADD(?, INTERVAL ${tomorrow.getDay() === 5 ? 0 : 7 - tomorrow.getDay() + 5} DAY)
+            WHEN 6 THEN DATE_ADD(?, INTERVAL ${tomorrow.getDay() === 6 ? 0 : 7 - tomorrow.getDay() + 6} DAY)
+            WHEN 7 THEN DATE_ADD(?, INTERVAL ${tomorrow.getDay() === 0 ? 0 : 7 - tomorrow.getDay()} DAY)
           END
         )
       )`;
-      params.push(playerId, nextMonday, nextMonday, nextMonday, nextMonday, nextMonday, nextMonday, nextMonday);
+      params.push(playerId, tomorrowDate, tomorrowDate, tomorrowDate, tomorrowDate, tomorrowDate, tomorrowDate, tomorrowDate);
     }
 
-    query += ` ORDER BY s.day_of_week, s.start_time`;
+    query += ` ORDER BY session_date, s.start_time`;
 
     const sessions = await executeQuery(query, params);
 
