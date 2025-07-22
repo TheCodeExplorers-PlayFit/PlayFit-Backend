@@ -714,9 +714,104 @@ async function addStadiumRating(req, res) {
     res.status(500).json({ success: false, message: 'Failed to add rating' });
   }
 }
+// Get logged-in coach's achievements
+const getMyAchievements = async (req, res) => {
+  try {
+    const coachId = req.query.coachId;
+    if (!coachId) {
+      return res.status(400).json({ error: 'Coach ID is required' });
+    }
 
+    const [rows] = await pool.query(
+      `SELECT s.id, s.stadium_id, s.start_time, st.name AS stadium_name
+       FROM sessions s
+       JOIN stadiums st ON s.stadium_id = st.id
+       WHERE s.coach_id = ? AND s.status = 'booked'`,
+      [coachId]
+    );
 
+    // Formula: 10 points per booked session
+    const achievements = rows.map(row => ({
+      id: row.id,
+      coach_id: parseInt(coachId),
+      stadium_id: row.stadium_id,
+      stadium_name: row.stadium_name,
+      points: 10, // 10 points per booked session
+      dateEarned: row.start_time ? new Date().toISOString().split('T')[0] : '2025-07-20'
+    }));
 
+    res.json(achievements);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Get all coaches' achievements
+const getAllCoachAchievements = async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT s.id, s.coach_id, s.stadium_id, s.start_time, 
+              u.first_name AS coach_name, st.name AS stadium_name
+       FROM sessions s
+       JOIN users u ON s.coach_id = u.id
+       JOIN stadiums st ON s.stadium_id = st.id
+       WHERE u.role = 'coach' AND s.status = 'booked'`
+    );
+
+    // Formula: 10 points per booked session
+    const achievements = rows.map(row => ({
+      id: row.id,
+      coach_id: row.coach_id,
+      coach_name: row.coach_name,
+      stadium_id: row.stadium_id,
+      stadium_name: row.stadium_name,
+      points: 10, // 10 points per booked session
+      dateEarned: row.start_time ? new Date().toISOString().split('T')[0] : '2025-07-20'
+    }));
+
+    res.json(achievements);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Get top 5 coaches by total points
+const getTopCoaches = async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT s.coach_id, u.first_name AS coach_name, COUNT(s.id) * 10 AS total_points
+       FROM sessions s
+       JOIN users u ON s.coach_id = u.id
+       WHERE u.role = 'coach' AND s.status = 'booked'
+       GROUP BY s.coach_id, u.first_name
+       ORDER BY total_points DESC
+       LIMIT 5`
+    );
+
+    res.json(rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// New function for blog submission
+const submitBlog = async (req, res) => {
+  try {
+    const { title, content } = req.body;
+    const image = req.file ? req.file.path : null;
+    const coachId = req.user.id; // Assuming protect middleware adds user to req
+
+    const [result] = await pool.query(
+      `INSERT INTO blogs (title, content, image, coach_id, created_at)
+       VALUES (?, ?, ?, ?, NOW())`,
+      [title, content, image, coachId]
+    );
+
+    res.status(201).json({ id: result.insertId, message: 'Blog submitted successfully' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
 
 // Export the controller functions
 module.exports = {
@@ -735,5 +830,8 @@ module.exports = {
   getCoachNotices,
   getRecentStadiumRatings,
   searchStadiums,
-  addStadiumRating
+  addStadiumRating,
+  getAllCoachAchievements,  
+  getTopCoaches,
+  getMyAchievements
 };
