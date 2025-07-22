@@ -813,6 +813,65 @@ const submitBlog = async (req, res) => {
   }
 };
 
+// Fetch all complaints submitted by a specific coach
+async function getCoachComplaints(req, res) {
+  try {
+    const coachId = req.user?.id;
+    
+    if (!coachId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Coach ID is required. Please ensure you are logged in.'
+      });
+    }
+
+    const complaints = await executeQuery(`
+      SELECT 
+        r.id,
+        r.reported_by,
+        r.reported_to,
+        r.stadium_id,
+        s.name AS stadium_name,
+        r.description,
+        r.status,
+        r.created_at
+      FROM reports r
+      LEFT JOIN stadiums s ON r.stadium_id = s.id
+      WHERE r.reported_by = ?
+      ORDER BY r.created_at DESC
+    `, [coachId]);
+
+    if (complaints.length === 0) {
+      return res.status(200).json({
+        success: true,
+        complaints: [],
+        message: 'No complaints found for this coach'
+      });
+    }
+
+    const formattedComplaints = complaints.map(complaint => ({
+      id: complaint.id,
+      type: complaint.reported_to === 'stadiumOwner' ? 'stadium' : 'system',
+      stadiumName: complaint.stadium_name || 'N/A',
+      description: complaint.description,
+      status: complaint.status,
+      createdAt: complaint.created_at.toISOString().split('T')[0]
+    }));
+
+    res.status(200).json({
+      success: true,
+      complaints: formattedComplaints
+    });
+  } catch (error) {
+    console.error('Error fetching coach complaints:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch coach complaints',
+      error: error.message
+    });
+  }
+};
+
 // Export the controller functions
 module.exports = {
   getSessionDetails,
@@ -833,5 +892,6 @@ module.exports = {
   addStadiumRating,
   getAllCoachAchievements,  
   getTopCoaches,
-  getMyAchievements
+  getMyAchievements,
+  getCoachComplaints
 };

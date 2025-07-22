@@ -35,7 +35,7 @@ router.post('/rate', protect, CoachSessionController.addStadiumRating);
 router.get('/achievements', protect, CoachSessionController.getMyAchievements);
 router.get('/achievements/all', protect, CoachSessionController.getAllCoachAchievements);
 router.get('/achievements/top', protect, CoachSessionController.getTopCoaches);
-
+router.get('/my-complaints', protect, CoachSessionController.getCoachComplaints);
 
 
 //  new route for blog submission with image upload
