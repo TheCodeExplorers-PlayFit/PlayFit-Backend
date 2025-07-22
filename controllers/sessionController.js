@@ -148,6 +148,7 @@ exports.getWeeklyTimetable = async (req, res) => {
       AND s.status = 'available' 
       AND s.no_of_players < s.max_players
       AND s.recurring = 1
+      AND s.coach_id IS NOT NULL
       AND (
         CASE s.day_of_week
           WHEN 1 THEN DATE_ADD(?, INTERVAL ${tomorrow.getDay() === 1 ? 0 : 7 - tomorrow.getDay() + 1} DAY)
