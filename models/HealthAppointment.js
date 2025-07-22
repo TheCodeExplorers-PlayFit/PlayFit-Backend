@@ -37,6 +37,10 @@ const HealthAppointment = sequelize.define('HealthAppointment', {
   status: {
     type: DataTypes.STRING(20),
     allowNull: true
+  },
+  approved_at: {          // ← NEW
+    type: DataTypes.DATE,
+    allowNull: true
   }
 }, {
   timestamps: false,
