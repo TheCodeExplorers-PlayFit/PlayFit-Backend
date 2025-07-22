@@ -179,7 +179,10 @@ exports.getApprovedAppointmentsWithUserDetails = async (req, res) => {
         u.mobile_number,
         u.age,
         u.gender,
-        u.nic
+        u.nic,
+         ha.appointment_date,
+        ha.appointment_time,
+        ha.approved_at         
       FROM healthappointments ha
       JOIN users u ON ha.player_id = u.id
       WHERE ha.health_officer_id = ? AND ha.status = 'approved'
