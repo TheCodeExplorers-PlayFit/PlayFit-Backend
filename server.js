@@ -32,7 +32,7 @@ const healthTipRoutes = require('./routes/healthTip.routes');
 const questionRoutes = require('./routes/question.routes');
 const calendarRoutes = require('./routes/calendarRoutes');
 const ratingRoutes = require('./routes/ratingRoutes');
-<<<<<<< HEAD
+
 const blogRoutes = require('./routes/blogRoutes');
 const achievementsRoutes = require('./routes/achievementsRoutes');
 const playerAppointmentsRoutes = require('./routes/playerAppointmentsRoutes');
@@ -42,9 +42,9 @@ const playerSideLeaderboardsPackagesRoutes = require('./routes/playerSideLeaderb
 const privateSessionRoutes = require('./routes/privateSessionRoutes');
 const stadiumOwnerAnnouncementRoutes = require('./routes/stadiumOwnerAnnouncementRoutes');
 const revenueRoutes = require('./routes/revenueRoutes');
-=======
+
 const adminComplaintsRoutes = require('./routes/adminComplaintsRoutes');
->>>>>>> ebb4f0e (AdminComplaints-backend)
+
 
 // Cloudinary Debug (Optional)
 console.log('Cloudinary Config:', {
