@@ -1,7 +1,8 @@
 const { HealthAppointment } = require('../models');
 const nodemailer = require('nodemailer');
-
 const { pool } = require('../config/db');
+const moment = require('moment-timezone');
+
 
 
 
@@ -27,7 +28,9 @@ exports.updateAppointmentStatus = async (healthAppointmentId, status) => {
   appointment.status = status;
   // ➕ store the exact moment the officer clicked “Approve”
   if (status.toLowerCase() === 'approved') {
-    appointment.approved_at = new Date();
+      const colomboTime = moment().tz('Asia/Colombo').toDate();
+    console.log('🕒 Colombo Time:', colomboTime); // ✅ This is the key log
+    appointment.approved_at = colomboTime;
   } else {
     appointment.approved_at = null; // reset if it gets rejected again
   }
