@@ -870,7 +870,123 @@ async function getCoachComplaints(req, res) {
       error: error.message
     });
   }
-};
+}
+
+// Helper function to execute SQL with parameters
+async function executeQuery(sql, params = []) {
+  try {
+    const [results] = await pool.execute(sql, params);
+    return results;
+  } catch (error) {
+    console.error('Database error:', error);
+    throw error;
+  }
+}
+
+
+async function cancelBooking(req, res) {
+  try {
+    const { sessionId } = req.params;
+    const coachId = req.user?.id;
+
+    if (!sessionId || !coachId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Session ID and Coach ID are required',
+      });
+    }
+
+    const [session] = await executeQuery(
+      `SELECT * FROM sessions WHERE id = ? AND coach_id = ? AND isbooked = 1 AND status = 'booked'`,
+      [sessionId, coachId]
+    );
+
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        message: 'Session not found, not booked by this coach, or already cancelled',
+      });
+    }
+
+    const result = await executeQuery(
+      `UPDATE sessions SET coach_id = NULL, isbooked = 0, status = 'available', no_of_players = 0 WHERE id = ? AND coach_id = ?`,
+      [sessionId, coachId]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Failed to cancel session',
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Session cancelled successfully',
+    });
+  } catch (error) {
+    console.error('Error cancelling session:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to cancel session',
+      error: error.message,
+    });
+  }
+}
+async function getCoachBookedSessions(req, res) {
+  try {
+    const coachId = req.user?.id;
+    const { stadiumId, startDate, endDate } = req.query;
+
+    if (!coachId || !stadiumId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Coach ID and stadiumId are required',
+      });
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const start = startDate ? new Date(startDate) : today;
+    const end = endDate ? new Date(endDate) : new Date(today.setDate(today.getDate() + 7));
+
+    const sessions = await executeQuery(
+      `SELECT DISTINCT s.id, s.stadium_id, s.sport_id, sp.name AS sport_name, s.coach_id, s.start_time, s.end_time, s.status, s.total_cost AS cost, s.day_of_week, s.recurring, s.isbooked, s.max_players, s.no_of_players, s.stadium_sport_cost, s.coach_cost
+       FROM sessions s
+       JOIN sports sp ON s.sport_id = sp.id
+       WHERE s.stadium_id = ? AND s.coach_id = ? AND s.isbooked = 1 AND s.status = 'booked'`,
+      [stadiumId, coachId]
+    );
+
+    const bookedSessions = sessions.map(session => {
+      const sessionDate = new Date(start);
+      const currentDayOfWeek = start.getDay() === 0 ? 7 : start.getDay();
+      const dayAdjustment = (session.day_of_week - currentDayOfWeek + 7) % 7;
+      sessionDate.setDate(start.getDate() + dayAdjustment);
+      return {
+        ...session,
+        session_date: sessionDate.toISOString().split('T')[0],
+      };
+    }).filter(session => {
+      const sessionDate = new Date(session.session_date);
+      return sessionDate >= start && sessionDate <= end;
+    });
+
+    res.status(200).json({
+      success: true,
+      sessions: bookedSessions,
+    });
+  } catch (error) {
+    console.error('Error fetching booked sessions:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch booked sessions',
+      error: error.message,
+    });
+  }
+}
+
+
 
 // Export the controller functions
 module.exports = {
@@ -893,5 +1009,8 @@ module.exports = {
   getAllCoachAchievements,  
   getTopCoaches,
   getMyAchievements,
-  getCoachComplaints
+  getCoachComplaints,
+  getCoachBookedSessions,
+  cancelBooking
+  
 };
