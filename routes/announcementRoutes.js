@@ -1,14 +1,14 @@
 // routes/announcementRoutes.js
 const express = require('express');
 const router = express.Router();
-const db = require('../config/db');
+const { pool } = require('../config/db');
 
 // Create a new notice
 router.post('/create', async (req, res) => {
   const { admin_id, category, title, description, notice_date, author } = req.body;
 
   try {
-    const [result] = await db.query(
+    const [result] = await pool.query(
       'INSERT INTO announcements (admin_id, category, title, description, notice_date, author, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())',
       [admin_id, category, title, description, notice_date, author]
     );
@@ -22,7 +22,7 @@ router.post('/create', async (req, res) => {
 // Get all notices
 router.get('/', async (req, res) => {
   try {
-    const [notices] = await db.query('SELECT * FROM announcements ORDER BY created_at DESC');
+    const [notices] = await pool.query('SELECT * FROM announcements ORDER BY created_at DESC');
     res.status(200).json(notices);
   } catch (error) {
     console.error(error);
@@ -36,7 +36,7 @@ router.put('/:id', async (req, res) => {
   const { category, title, description, notice_date, author } = req.body;
 
   try {
-    const [result] = await db.query(
+    const [result] = await pool.query(
       'UPDATE announcements SET category = ?, title = ?, description = ?, notice_date = ?, author = ? WHERE id = ?',
       [category, title, description, notice_date, author, id]
     );
@@ -55,7 +55,7 @@ router.delete('/:id', async (req, res) => {
   const { id } = req.params;
 
   try {
-    const [result] = await db.query('DELETE FROM announcements WHERE id = ?', [id]);
+    const [result] = await pool.query('DELETE FROM announcements WHERE id = ?', [id]);
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: 'Notice not found' });
     }
